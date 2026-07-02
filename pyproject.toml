@@ -1,0 +1,81 @@
+[project]
+name = "polish-inflection"
+version = "0.1.0"
+description = "Lekka odmiana polskich rzeczowników przez przypadki (dane SGJP, indeks marisa-trie, mmap)."
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "BSD-2-Clause" }
+authors = [{ name = "Michał Pasternak" }]
+keywords = ["polish", "inflection", "declension", "nlp", "sgjp", "morphology", "przypadki", "odmiana"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: BSD License",
+    "Natural Language :: Polish",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Text Processing :: Linguistic",
+]
+dependencies = [
+    "marisa-trie>=1.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/mpasternak/polish-inflection"
+Repository = "https://github.com/mpasternak/polish-inflection"
+
+[project.optional-dependencies]
+# Zależności potrzebne TYLKO do offline'owego builda indeksów (u autora / w CI).
+# Sam marisa-trie (runtime) buduje i czyta indeksy; tu dokładamy tylko klienta HTTP
+# dla `refresh-sgjp`. Użytkownik pakietu tego nie instaluje.
+build = [
+    "requests>=2.28",
+]
+
+[project.scripts]
+polish-inflection-build = "polish_inflection.build:main"
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+    "ruff>=0.6",
+    "pre-commit>=3.5",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/polish_inflection"]
+# Zbudowane indeksy .marisa (dane pakietowe) jadą w wheelu wraz z pakietem.
+artifacts = ["*.marisa"]
+
+[tool.hatch.build.targets.sdist]
+# sdist wiezie kod + zbudowane .dawg, ale NIE surowy vendorowany SGJP .tab.gz (42 MB).
+include = [
+    "src/",
+    "tests/",
+    "docs/",
+    "README.md",
+    "LICENSE",
+    "NOTICE.md",
+    "pyproject.toml",
+]
+exclude = [
+    "data/sgjp/*.tab.gz",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py39"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "W"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

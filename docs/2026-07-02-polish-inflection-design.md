@@ -1,7 +1,7 @@
 # polish-inflection — specyfikacja projektowa
 
 - **Data:** 2026-07-02
-- **Status:** projekt zaakceptowany (brainstorming), przed planem implementacji
+- **Status:** projekt zaakceptowany (brainstorming); zaktualizowano po implementacji (marisa-trie)
 - **Autor:** Michał Pasternak (+ Claude)
 - **Repozytorium:** `~/Programowanie/polish-inflection`
 
@@ -18,8 +18,9 @@ w interfejsie muszą pojawiać się w różnych przypadkach ("lista pracowników
 
 ### Dlaczego nowy pakiet — luka w ekosystemie
 
-Research (2026-07-02) pokazał, że nie istnieje lekkie, czysto-Pythonowe,
-przyjazne wdrożeniu rozwiązanie do odmiany polskich rzeczowników:
+Research (2026-07-02) pokazał, że nie istnieje lekkie, łatwe do wdrożenia
+(instalacja bez kompilatora), przyjazne rozwiązanie do odmiany polskich
+rzeczowników:
 
 - **gettext / formy mnogie** — rozwiązują *inny* problem: wybór wariantu wg
   **liczby** (`nplurals=3`: 1 / 2–4 / 5+), a nie odmianę przez **przypadki**.
@@ -35,7 +36,8 @@ przyjazne wdrożeniu rozwiązanie do odmiany polskich rzeczowników:
 
 Ekosystem jest rozdwojony: albo pełny silnik NLP (Morfeusz), albo "trzymaj
 formy ręcznie w tabeli" (to, co BPP robi dziś modelem `Rzeczownik`). Nisza na
-**lekką, czysto-Pythonową bibliotekę opartą o dane SGJP** realnie istnieje.
+**lekką bibliotekę opartą o dane SGJP, instalowalną bez kompilatora**, realnie
+istnieje.
 
 ### Kluczowa idea architektoniczna: dane, nie silnik
 
@@ -80,13 +82,14 @@ Dwie fazy rozdzielone w czasie:
 │  SGJP .tab (vendored, pinned)                                          │
 │      │  filtr: zostaw linie subst / depr                              │
 │      │  parse tagu: subst:<liczba>:<przypadek>:<rodzaj>               │
+│      │  (liczba/przypadek dot-collapsed → rozwiń; obetnij fleksem)    │
 │      ▼                                                                 │
-│  budowa DWÓCH indeksów DAWG:                                          │
-│      • odmien.dawg   klucz=(lemat, przypadek, liczba) → forma(y)      │
-│      • podaj.dawg    klucz=forma → [(lemat, przypadek, liczba, rodzaj)]│
+│  budowa DWÓCH indeksów marisa-trie (BytesTrie):                       │
+│      • odmien.marisa  klucz=(lemat, przypadek, liczba) → forma(y)     │
+│      • podaj.marisa   klucz=forma → [(lemat, przypadek, liczba, rodzaj)]│
 └───────────────────────────────┬───────────────────────────────────────┘
-                                 │  artefakty .dawg shipowane w wheelu
-┌───────────────────────────────▼─────────── RUNTIME (czysty Python) ────┐
+                                 │  artefakty .marisa shipowane w wheelu
+┌───────────────────────────────▼──── RUNTIME (bez kompilatora) ─────────┐
 │  odmien("wydział", DOPEŁNIACZ, liczba=POJEDYNCZA) → "wydziału"         │
 │  podaj("jednostki")  → [(jednostka, DOPEŁNIACZ, poj.),                 │
 │                         (jednostka, MIANOWNIK, mn.),                   │
@@ -94,8 +97,9 @@ Dwie fazy rozdzielone w czasie:
 └────────────────────────────────────────────────────────────────────────┘
 ```
 
-Runtime ładuje gotowe `.dawg` (mmap, stała pamięć) — nie widzi ani SGJP `.tab`,
-ani Morfeusza, ani narzędzi build.
+Runtime ładuje gotowe `.marisa` (mmap, stała pamięć) — nie widzi ani SGJP `.tab`,
+ani Morfeusza, ani narzędzi build. Tę samą bibliotekę `marisa-trie` używa build
+(zapis) i runtime (odczyt) — brak podziału na osobne biblioteki build/runtime.
 
 ---
 
@@ -124,41 +128,69 @@ Morfeusz ma dwie warstwy formatu; **bierzemy tę pierwszą**:
 2. **Skompilowany `.dict`** — binarny FSA (dwa automaty: analizy i syntezy),
    nieczytelny bez silnika C++. **Nie używamy go.**
 
-Tag `subst:sg:gen:m3` rozpakowuje się 1:1 na nasz klucz — cały build to
-"wczytaj `.tab` → filtruj → rozbij tag → wsyp do DAWG".
+**Tag SGJP NIE rozpakowuje się 1:1** (weryfikacja na realnych danych):
+
+- Pola **liczby i przypadka są „dot-collapsed"** — jeden rekord koduje wiele
+  kombinacji przez kropkę. Np. `subst:sg:nom.acc:m3` = *ta sama forma* dla
+  mianownika **i** biernika liczby pojedynczej; tak samo kolapsuje się liczba.
+  Build **rozwija** iloczyn kartezjański (`nom.acc` → `nom` + `acc`) na osobne
+  klucze — stąd naturalnie bierze się synkretyzm w indeksach.
+- Kolumna lematu może nieść **sufiks fleksemu po `:`** (np. `profesor:Sm1`),
+  identyfikujący konkretny leksem/paradygmat. Build **obcina** go do gołego
+  lematu (`profesor`).
+- Formy **`depr`** (deprecjatywne) trafiają **wyłącznie do `podaj`** (analiza),
+  **nigdy do `odmien`** (generacja formy głównej).
+
+Cały build to zatem "wczytaj `.tab` → filtruj → rozbij i **rozwiń** tag,
+**obetnij fleksem** → wsyp do marisa-trie".
 
 ---
 
-## 5. Reprezentacja danych: DAWG
+## 5. Reprezentacja danych: marisa-trie
 
-**Wybór: DAWG (Directed Acyclic Word Graph), nie SQLite.**
+**Wybór: marisa-trie (`marisa_trie.BytesTrie`), nie SQLite.**
 
-Uzasadnienie:
+> **Uwaga (decyzja pomiarowa).** Pierwotnym wyborem był **DAWG** (`BytesDAWG`
+> z `dawg2`/`DAWG-Python`) — patrz uzasadnienie strukturalne niżej, które nadal
+> obowiązuje co do klasy struktury (trie/automat nad zbiorem kluczy). Po
+> zbudowaniu obu wariantów na **pełnym SGJP** okazało się jednak, że payloady
+> wartości `BytesDAWG` napompowały artefakty do **~254 MB** (odmien ~150 MB +
+> podaj ~104 MB) — powyżej limitu 100 MB/plik na PyPI. Te same dane w
+> marisa-trie zajmują **~49 MB** (odmien ~24 MB + podaj ~25 MB). Dlatego
+> **przełączyliśmy warstwę storage z DAWG na marisa-trie**; to była zmiana
+> zmierzona, nie spekulacja.
+
+Uzasadnienie klasy struktury (dlaczego trie/automat, nie SQLite):
 
 - Dane to **read-only słownik ładowany raz** — nie potrzeba zapytań ad-hoc,
   zakresów, mutowalności (mocne strony SQLite).
 - Indeks SQLite (B-drzewo) przyspiesza *wyszukanie*, ale **nie kompresuje**:
   każda forma leży w wierszu w całości, zero współdzielenia wspólnych rdzeni i
   końcówek. SQLite nie ma typu "trie/automat".
-- DAWG kompresuje **strukturalnie**: scala wspólne prefiksy (jak trie) *oraz*
-  wspólne sufiksy (współdzielone pod-grafy). Polska fleksja = ~1116 wzorców
-  końcówek na ~330k leksemów → końcówki (`-ach`, `-owi`, `-ami`, `-em`) powtarzają
-  się miliony razy; DAWG scala obie osie redundancji. To matematycznie minimalny
-  automat dla danego zbioru.
-- Lookup = przejście grafu w O(długość słowa), stała pamięć (mmap).
+- Trie/automat kompresuje **strukturalnie**: scala wspólne prefiksy zbioru
+  kluczy. Polska fleksja = ~1116 wzorców końcówek na setki tysięcy leksemów →
+  końcówki (`-ach`, `-owi`, `-ami`, `-em`) powtarzają się miliony razy; struktura
+  scala tę redundancję. marisa-trie (Matching Algorithm with Recursively
+  Implemented StorAge) buduje bardzo zwięzły, statyczny automat nad zbiorem
+  kluczy.
+- Lookup = przejście automatu w O(długość słowa), stała pamięć (mmap).
 
-**Biblioteka:** `dawg2` / `DAWG-Python` (autor: ten sam co pymorphy) — `BytesDAWG`
-/ `RecordDAWG` mapują klucz-string → **listę** rekordów binarnych. Czysto-Pythonowy
-reader, `pip install`, zero C++.
+**Biblioteka:** `marisa-trie` — **ta sama** biblioteka buduje (zapis) i czyta
+(odczyt); brak podziału na osobne biblioteki build vs runtime. `BytesTrie` mapuje
+klucz-string → **listę** rekordów binarnych (wiele wartości pod jednym kluczem),
+co wprost daje nam synkretyzm i oboczności. Instalacja **bez kompilatora**:
+marisa-trie to rozszerzenie C++, ale dostarcza gotowe binarne wheele (cp39–cp313
+dla Linux/macOS/Windows), więc `pip install` nie wymaga toolchainu.
 
-- `odmien.dawg` — `BytesDAWG`, klucz `"lemat\tprzypadek\tliczba"` → forma(y).
+- `odmien.marisa` — `BytesTrie`, klucz `"lemat\tprzypadek\tliczba"` → forma(y).
   Oboczności (wiele poprawnych form w jednym slocie) = wiele rekordów pod kluczem.
-- `podaj.dawg` — `BytesDAWG`, klucz `"forma"` → rekordy `(lemat, przypadek,
+- `podaj.marisa` — `BytesTrie`, klucz `"forma"` → rekordy `(lemat, przypadek,
   liczba, rodzaj)`. Synkretyzm/homografia = wiele rekordów pod kluczem.
 
-**Fallback:** jeśli pomiar rozmiaru rzeczowników-DAWG pokaże plik nadmiernie
-ciężki na PyPI — rozważyć wariant kompresji/kwantyzacji, ale to zamiana warstwy
-storage za flagą, nie zmiana architektury. Domyślnie: DAWG.
+**Reader wykorzystuje mmap:** pojedynczy lookup stronicuje do RAM tylko O(długość
+słowa) węzłów automatu (~1 µs/lookup, ~1 mln/s), więc **import nie ładuje słownika
+do RAM**. Pomiar: pojedynczy lookup to ~+1,5 MB RSS, wobec ~+23 MB przy pełnym
+wczytaniu słownika — spełnia to kryterium sukcesu z §13.
 
 ---
 
@@ -176,15 +208,18 @@ Faza offline, uruchamiana u autora / w CI, **nie** przy `pip install`.
 - Osobna komenda maintainerska `refresh-sgjp` pobiera **najnowszą** wersję SGJP,
   weryfikuje, aktualizuje pin (wersja + suma kontrolna) i re-vendoruje. Normalny
   build nigdy nie sięga do sieci; tylko jawny `refresh` to robi.
-- Rozmiar: skompresowany `.tab.gz` rzędu kilkudziesięciu MB. Do rozważenia
-  **git-lfs** dla kopii vendorowanej (decyzja w planie).
+- Rozmiar: skompresowany `.tab.gz` rzędu kilkudziesięciu MB. Kopia vendorowana
+  trzymana w **git-lfs** i wykluczona z sdist/wheel (rozstrzygnięte — patrz §14).
 
 ### 6.2. Budowa indeksów
 
 1. Rozpakuj vendorowany `.tab.gz`.
 2. Filtruj linie: zostaw `subst` i `depr`, odrzuć resztę.
-3. Parsuj tag → `(liczba, przypadek, rodzaj)`; odrzuć wpisy niekompletne/nietypowe.
-4. Zbuduj `odmien.dawg` i `podaj.dawg`.
+3. Parsuj tag → `(liczba, przypadek, rodzaj)`; **rozwiń** pola dot-collapsed
+   (`nom.acc`, kolaps liczby) na osobne kombinacje; **obetnij sufiks fleksemu**
+   z kolumny lematu (`profesor:Sm1` → `profesor`); odrzuć wpisy
+   niekompletne/nietypowe.
+4. Zbuduj `odmien.marisa` (bez `depr`) i `podaj.marisa` (z `depr`).
 5. Zapisz artefakty do `src/polish_inflection/data/`.
 6. Zapisz `BUILD_INFO.json` (wersja SGJP, data build, liczba lematów/form,
    rozmiary plików) — do diagnostyki i do README.
@@ -193,18 +228,18 @@ Faza offline, uruchamiana u autora / w CI, **nie** przy `pip install`.
 
 | Artefakt | Repo/git | sdist | wheel |
 |---|---|---|---|
-| Vendorowany SGJP `.tab.gz` + `PIN.json` | ✅ (durability) | do decyzji (rozmiar) | ❌ |
-| Zbudowane `.dawg` | ✅ (lub build w CI) | ✅ | ✅ |
+| Vendorowany SGJP `.tab.gz` + `PIN.json` | ✅ (git-lfs, durability) | ❌ | ❌ |
+| Zbudowane `.marisa` | ✅ (lub build w CI) | ✅ | ✅ |
 | Skrypt build + `refresh-sgjp` | ✅ | ✅ | ❌ |
 
-Wheel wiezie tylko kompaktowe `.dawg` — użytkownik dostaje działający pakiet bez
-SGJP i bez narzędzi build.
+Wheel wiezie tylko kompaktowe `.marisa` (~49 MB danych, wheel ≈ 27 MB) —
+użytkownik dostaje działający pakiet bez SGJP i bez narzędzi build.
 
 ---
 
 ## 7. API runtime
 
-Czysty Python, moduł `polish_inflection`.
+Moduł `polish_inflection` (odczyt przez `marisa-trie`).
 
 ### 7.1. Stałe (plik `const`)
 
@@ -222,16 +257,24 @@ WOŁACZ      = "voc"   # o!
 
 POJEDYNCZA  = "sg"
 MNOGA       = "pl"
+
+TEN_SAM_WYRAZ = ...   # sentinel dla default= (patrz odmien_lub_wyraz)
 ```
 
-(Do rozważenia w planie: `enum.Enum` zamiast stałych modułowych; aliasy skrótami
-`M/D/C/B/N/Ms/W` dla zwięzłości. Kanoniczne są **nazwane stałe**.)
+Rozstrzygnięto: **stałe modułowe** (string), bez `enum.Enum` i bez aliasów
+skrótowych `M/D/C/…`. Dodatkowo sentinel `TEN_SAM_WYRAZ` używany jako wartość
+`default=` w `odmien` (przepuszcza wejście, gdy brak odmiany).
 
 ### 7.2. Funkcje
 
 ```python
-def odmien(wyraz: str, przypadek: str, liczba: str = POJEDYNCZA) -> str:
+def odmien(wyraz: str, przypadek: str, liczba: str = POJEDYNCZA,
+           *, default=...) -> str:
     """Zwróć główną formę `wyraz` w danym przypadku i liczbie.
+
+    Brak wpisu → domyślnie wyjątek `BrakOdmiany`. Parametr `default=`
+    (na wzór `dict.get`) pozwala zwrócić wartość zastępczą zamiast wyjątku;
+    `default=TEN_SAM_WYRAZ` przepuszcza wejściowy `wyraz`.
 
     >>> odmien("wydział", DOPEŁNIACZ)
     'wydziału'
@@ -240,6 +283,20 @@ def odmien(wyraz: str, przypadek: str, liczba: str = POJEDYNCZA) -> str:
     >>> odmien("wydział", DOPEŁNIACZ, liczba=MNOGA)
     'wydziałów'
     """
+
+def odmien_lub_none(wyraz: str, przypadek: str,
+                    liczba: str = POJEDYNCZA) -> str | None:
+    """Jak `odmien`, ale słowo spoza słownika → `None` (bez wyjątku)."""
+
+def odmien_lub_wyraz(wyraz: str, przypadek: str,
+                     liczba: str = POJEDYNCZA) -> str:
+    """Jak `odmien`, ale słowo spoza słownika → zwraca wejściowy `wyraz`
+    (odpowiednik `default=TEN_SAM_WYRAZ`)."""
+
+def odmien_warianty(wyraz: str, przypadek: str,
+                    liczba: str = POJEDYNCZA) -> list[str]:
+    """Zwróć WSZYSTKIE poprawne formy (oboczności) dla slotu, listą.
+    `odmien` zwraca tylko formę główną; tu dostajemy komplet wariantów."""
 
 def podaj(wyraz: str, liczba: str | None = None) -> list[Analiza]:
     """Zwróć listę analiz danej formy (kierunek zwrotny).
@@ -261,11 +318,13 @@ def podaj(wyraz: str, liczba: str | None = None) -> list[Analiza]:
 
 ### 7.3. Zachowanie brzegowe
 
-- **Słowo spoza słownika** (`odmien`): brak wpisu → wyjątek dedykowany
-  (`BrakOdmiany`/`LemmaNotFound`) zamiast cichego zwrotu wejścia. Konsument
-  (BPP) decyduje o fallbacku. (Do decyzji w planie: wyjątek vs `None` vs sentinel.)
-- **Oboczności** (`odmien`): wiele poprawnych form → zwracamy **główną**;
-  wariant `warianty=True` lub osobna funkcja zwraca listę (decyzja w planie).
+- **Słowo spoza słownika** (`odmien`): brak wpisu → domyślnie wyjątek
+  `BrakOdmiany` zamiast cichego zwrotu wejścia. Konsument (BPP) decyduje o
+  fallbacku. Rozstrzygnięto: obok wyjątku dostępne są `odmien_lub_none` (→`None`),
+  `odmien_lub_wyraz` (→wejściowy wyraz) oraz ogólny `default=` (styl `dict.get`,
+  w tym `default=TEN_SAM_WYRAZ`).
+- **Oboczności** (`odmien`): wiele poprawnych form → `odmien` zwraca **główną**;
+  komplet wariantów zwraca osobna funkcja `odmien_warianty() -> list[str]`.
 - **Rodzaj**: atrybut lematu, nie parametr. Gdy string-lemat mapuje się na
   wiele leksemów o różnym rodzaju/paradygmacie → `odmien` zwraca formę
   najczęstszego/pierwszego, a `podaj` ujawnia wszystkie (nieś `lemat` + `rodzaj`).
@@ -277,25 +336,28 @@ def podaj(wyraz: str, liczba: str | None = None) -> list[Analiza]:
 ```
 polish-inflection/
 ├── README.md                 # NAJPIERW polski, POTEM angielski
-├── LICENSE                   # licencja KODU pakietu (np. BSD-2 / MIT — decyzja w planie)
+├── LICENSE                   # licencja KODU pakietu (BSD-2-Clause)
 ├── NOTICE / THIRD_PARTY.md   # licencja DANYCH: klauzula BSD-2 SGJP + atrybucja
-├── pyproject.toml            # build: uv; deps: dawg2/DAWG-Python
+├── pyproject.toml            # build: uv; runtime dep: marisa-trie; [build]: requests
 ├── docs/
 │   ├── 2026-07-02-polish-inflection-design.md   # ten spec
 │   └── budowanie.md          # jak działa BUILD + refresh-sgjp + vendoring
 ├── data/
 │   └── sgjp/
-│       ├── sgjp-<wersja>.tab.gz   # vendorowany, przypięty SGJP (durability)
+│       ├── sgjp-<wersja>.tab.gz   # vendorowany, przypięty SGJP (git-lfs, durability)
 │       ├── PIN.json               # wersja + sha256 + url + data
 │       └── LICENSE.sgjp           # plik licencji jadący z wydaniem SGJP (verbatim)
+├── examples/                 # uruchamialne skrypty użycia (odmien / podaj)
 ├── src/
 │   └── polish_inflection/
-│       ├── __init__.py       # eksport: odmien, podaj, stałe
-│       ├── const.py          # PRZYPADEK / LICZBA
-│       ├── core.py           # ładowanie DAWG + odmien + podaj
+│       ├── __init__.py       # eksport: odmien, podaj, stałe, wyjątki
+│       ├── const.py          # PRZYPADEK / LICZBA / TEN_SAM_WYRAZ
+│       ├── core.py           # ładowanie .marisa + odmien + podaj
 │       ├── build.py          # pipeline BUILD (offline)
-│       └── data/             # zbudowane .dawg (shipowane w wheelu)
+│       ├── errors.py         # BrakOdmiany i inne wyjątki
+│       └── data/             # zbudowane .marisa (shipowane w wheelu)
 └── tests/
+    ├── fixtures/             # dane testowe (próbki .tab / oczekiwane formy)
     └── test_*.py
 ```
 
@@ -305,8 +367,7 @@ polish-inflection/
 
 Dwie warstwy, jawnie rozdzielone:
 
-1. **Kod pakietu** — permisywna licencja (BSD-2 lub MIT; decyzja w planie),
-   plik `LICENSE`.
+1. **Kod pakietu** — **BSD-2-Clause** (rozstrzygnięte), plik `LICENSE`.
 2. **Dane SGJP** — na **2-clause BSD**; redystrybucja dozwolona pod warunkiem
    zachowania noty copyright + tekstu licencji + atrybucji. **Wymóg twardy.**
    - Do repo dołączamy **verbatim** plik licencji jadący z pobranym wydaniem
@@ -359,9 +420,10 @@ atrybucja), licencja, ograniczenia (tylko rzeczowniki v1).
   wydział, klinika, koło, instytut, katedra, zakład, oddział, poradnia) — pełne
   7×2 form wpisane ręcznie jako oczekiwane, weryfikowane wobec `odmien`.
 - Testy `podaj` na formach synkretycznych (`jednostki` → M/D poj. + M/B mn.).
-- Test brzegowy: słowo spoza słownika → zdefiniowane zachowanie (wyjątek).
-- Test spójności build: liczba lematów/form > próg; oba DAWG-i ładują się i
-  round-trip `odmien`↔`podaj` zgadza się na próbce.
+- Test brzegowy: słowo spoza słownika → zdefiniowane zachowanie (`BrakOdmiany`,
+  `odmien_lub_none` → `None`, `odmien_lub_wyraz` → wejście, `default=`).
+- Test spójności build: liczba lematów/form > próg; oba indeksy `.marisa`
+  ładują się i round-trip `odmien`↔`podaj` zgadza się na próbce.
 - pytest, funkcje bez klas.
 
 ---
@@ -370,13 +432,13 @@ atrybucja), licencja, ograniczenia (tylko rzeczowniki v1).
 
 | Ryzyko | Mitygacja |
 |---|---|
-| Rozmiar DAWG za duży na PyPI | Pomiar w planie; git-lfs dla vendora; ewentualny wariant kompresji storage |
+| Rozmiar indeksu za duży na PyPI | **Rozstrzygnięte pomiarem**: DAWG (`BytesDAWG`) dawał ~254 MB (>100 MB/plik PyPI); marisa-trie daje ~49 MB (wheel ≈ 27 MB) → wybrano marisa-trie |
 | Zniknięcie źródła SGJP | Vendoring pinowanej kopii w repo (wymóg usera) |
 | Nieaktualność danych | Komenda `refresh-sgjp` + pin z sumą kontrolną |
 | Synkretyzm/homografia mylące konsumenta | `podaj` zwraca listę z lematem+rodzajem; dokumentacja |
-| Oboczności w slocie | `odmien` → forma główna; opcja `warianty` |
+| Oboczności w slocie | `odmien` → forma główna; `odmien_warianty()` → lista |
 | Niejednoznaczność licencyjna | Verbatim `LICENSE.sgjp` z pinu + `NOTICE` + atrybucja |
-| Nazwa zajęta na PyPI | Sprawdzić dostępność `polish-inflection` w planie |
+| Nazwa zajęta na PyPI | **Rozstrzygnięte**: nazwa `polish-inflection` jest wolna |
 
 ---
 
@@ -385,20 +447,33 @@ atrybucja), licencja, ograniczenia (tylko rzeczowniki v1).
 - `odmien("wydział", DOPEŁNIACZ) == "wydziału"` i analogicznie dla całego zbioru
   domenowego (7×2 form) — zielone testy charakteryzacyjne.
 - `podaj("jednostki")` zwraca komplet analiz synkretycznych.
-- `pip install polish-inflection` daje działający pakiet bez SGJP, bez C++,
-  bez narzędzi build; import nie ładuje słownika do RAM (mmap/leniwie).
+- `pip install polish-inflection` daje działający pakiet bez SGJP, bez
+  kompilatora (gotowe binarne wheele marisa-trie), bez narzędzi build; import
+  nie ładuje słownika do RAM (mmap — lookup stronicuje tylko O(długość słowa)
+  węzłów; ~+1,5 MB RSS vs ~+23 MB przy pełnym wczytaniu).
 - Build reprodukowalny z vendorowanego pinu bez dostępu do sieci.
 - README PL+EN, LICENSE kodu, NOTICE z klauzulą BSD-2 SGJP + atrybucją.
 - Zero zależności od Django.
 
 ---
 
-## 14. Decyzje odłożone do planu
+## 14. Decyzje (rozstrzygnięte w implementacji)
 
-1. Licencja kodu pakietu: BSD-2 vs MIT.
-2. Stałe jako `enum.Enum` vs stałe modułowe; aliasy skrótowe `M/D/C/…`.
-3. Zachowanie `odmien` dla słowa spoza słownika: wyjątek vs `None` vs sentinel.
-4. Zwrot oboczności: `warianty=True` vs osobna funkcja vs zawsze lista.
-5. git-lfs dla vendorowanego SGJP; czy `.tab.gz` wchodzi do sdist.
-6. Dokładna biblioteka DAWG: `dawg2` vs `marisa-trie` (pomiar rozmiar/szybkość).
-7. Weryfikacja wolności nazwy `polish-inflection` na PyPI.
+Pierwotnie odłożone do planu; poniżej z rozstrzygnięciem po implementacji.
+
+1. **Licencja kodu pakietu → BSD-2-Clause** (plik `LICENSE`).
+2. **Stałe → stałe modułowe (string)**; bez `enum.Enum`, bez aliasów skrótowych
+   `M/D/C/…`.
+3. **`odmien` dla słowa spoza słownika → wyjątek `BrakOdmiany`** (domyślnie),
+   plus `odmien_lub_none` (→`None`), `odmien_lub_wyraz` (→wejściowy wyraz, przez
+   `default=TEN_SAM_WYRAZ`) oraz ogólny parametr `default=` (styl `dict.get`).
+4. **Zwrot oboczności → osobna funkcja `odmien_warianty() -> list[str]`.**
+5. **git-lfs** dla vendorowanego `.tab.gz`; wykluczony ze sdist i wheela.
+6. **Biblioteka storage → marisa-trie** (zamiast DAWG). Pomiar na pełnym SGJP:
+   DAWG `BytesDAWG` ~254 MB vs marisa-trie ~49 MB — decydujący był limit
+   100 MB/plik na PyPI.
+7. **Nazwa `polish-inflection` na PyPI → wolna.**
+
+Kontekst pomiaru z pkt. 6: pełny SGJP to 223 748 lematów / 3 864 426 rekordów
+form (wersja `pl.sgjp.sgjp-2026.06.29`, pin `sgjp-20260628`); artefakty
+`odmien.marisa` ≈ 24 MB i `podaj.marisa` ≈ 25 MB, wheel ≈ 27 MB.

@@ -1,0 +1,5 @@
+# Vendorowany, przypięty SGJP w git-lfs (plik ~42 MB) — durability wg spec §6.1.
+data/sgjp/*.tab.gz filter=lfs diff=lfs merge=lfs -text
+# Zbudowane indeksy marisa-trie trzymamy w gicie jako binaria (nie diffowalne).
+# ~47 MB łącznie — mieszczą się w wheelu; gdyby urosły, przenieść do lfs.
+*.marisa binary

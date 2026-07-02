@@ -1,0 +1,41 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+
+# uv
+uv.lock
+
+# test / tooling
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# scratch
+*.tmp
+scratchpad/
+
+# macOS
+.DS_Store
+.AppleDouble
+._*
+
+# Windows
+Thumbs.db
+ehthumbs.db
+desktop.ini
+
+# Linux / editors
+*~
+.directory
+
+# IDE
+.idea/
+.vscode/
+.history/
