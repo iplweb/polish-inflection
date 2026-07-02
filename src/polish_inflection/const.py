@@ -35,3 +35,16 @@ class _TenSamWyraz:
 
 #: Wartownik dla ``odmien(..., default=TEN_SAM_WYRAZ)`` — passthrough wejścia.
 TEN_SAM_WYRAZ = _TenSamWyraz()
+
+
+class _Raises:
+    """Sentinel: gdy przekazany jako ``default`` i brak formy — rzuć ``BrakOdmiany``."""
+
+    __slots__ = ()
+
+    def __repr__(self) -> str:
+        return "RAISES"
+
+
+#: Wartownik dla ``default=RAISES`` — przy braku formy rzuć ``BrakOdmiany``.
+RAISES = _Raises()

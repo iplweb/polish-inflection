@@ -15,7 +15,7 @@ from pathlib import Path
 
 import marisa_trie
 
-from .const import POJEDYNCZA, TEN_SAM_WYRAZ
+from .const import POJEDYNCZA, RAISES, TEN_SAM_WYRAZ
 from .errors import Analiza, BrakOdmiany
 
 __all__ = [
@@ -26,8 +26,19 @@ __all__ = [
     "podaj",
 ]
 
-# Wewnętrzny wartownik: "default nie podany -> rzuć BrakOdmiany".
-_BRAK = object()
+
+def _rozwiaz_brak(wyraz, default):
+    """Rozwiąż brak formy wg parametru ``default`` (wspólne dla warstwy pytań).
+
+    ``RAISES`` → rzuć ``BrakOdmiany``; ``TEN_SAM_WYRAZ`` → zwróć ``wyraz``;
+    inaczej zwróć ``default`` (``None`` lub dowolną wartość).
+    """
+    if default is RAISES:
+        raise BrakOdmiany(wyraz)
+    if default is TEN_SAM_WYRAZ:
+        return wyraz
+    return default
+
 
 # Leniwie ładowane, mmapowane indeksy. Cache modułowy.
 _odmien_dawg = None
@@ -90,7 +101,7 @@ def _formy(wyraz: str, przypadek: str, liczba: str) -> list[str]:
     return sorted(v.decode("utf-8") for v in wartosci)
 
 
-def odmien(wyraz: str, przypadek: str, liczba: str = POJEDYNCZA, *, default=_BRAK):
+def odmien(wyraz: str, przypadek: str, liczba: str = POJEDYNCZA, *, default=RAISES):
     """Zwróć główną formę ``wyraz`` w danym przypadku i liczbie.
 
     Zachowanie przy braku formy (słowo spoza słownika lub liczba nieistniejąca
@@ -111,7 +122,7 @@ def odmien(wyraz: str, przypadek: str, liczba: str = POJEDYNCZA, *, default=_BRA
     formy = _formy(wyraz, przypadek, liczba)
     if formy:
         return formy[0]
-    if default is _BRAK:
+    if default is RAISES:
         raise BrakOdmiany((wyraz, przypadek, liczba))
     if default is TEN_SAM_WYRAZ:
         return wyraz
