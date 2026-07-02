@@ -10,6 +10,7 @@ Wymagają zainstalowanego pakietu (`pip install polish-inflection` lub
 | [`02_podaj.py`](02_podaj.py) | Analiza zwrotna forma → analizy; synkretyzm i filtr liczby (`podaj`). |
 | [`03_fallbacki.py`](03_fallbacki.py) | Zachowanie przy braku formy: wyjątek / `None` / passthrough / własny `default`. |
 | [`04_szablony_ui.py`](04_szablony_ui.py) | Zastosowanie źródłowe: nazwy typów jednostek w komunikatach UI. |
+| [`05_pytania.py`](05_pytania.py) | API pytań przypadkowych (`kogo_czego`…) + `podstawowa_forma`. |
 
 Uruchomienie:
 

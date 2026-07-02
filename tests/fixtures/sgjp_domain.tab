@@ -133,3 +133,8 @@ zakłady	zakład	subst:pl:nom.acc.voc:m3	nazwa_pospolita
 zakładzie	zakład	subst:sg:loc:m3	nazwa_pospolita
 zakładzie	zakład	subst:sg:voc:m3	nazwa_pospolita
 zakładów	zakład	subst:pl:gen:m3	nazwa_pospolita
+drzwi	drzwi	subst:pl:gen:n:pt	nazwa_pospolita
+drzwi	drzwi	subst:pl:nom.acc.voc:n:pt	nazwa_pospolita
+drzwiach	drzwi	subst:pl:loc:n:pt	nazwa_pospolita
+drzwiami	drzwi	subst:pl:inst:n:pt	nazwa_pospolita
+drzwiom	drzwi	subst:pl:dat:n:pt	nazwa_pospolita

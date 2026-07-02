@@ -104,6 +104,27 @@ podaj("jednostki", liczba="pl")   # zawężenie do liczby mnogiej
 
 `Analiza` to lekki `NamedTuple`: `(lemat, przypadek, liczba, rodzaj)`.
 
+### Pytania przypadkowe (`pytania`)
+
+Warstwa czytająca się jak zdanie: funkcje nazwane pytaniami przypadków. Zakładają
+wyraz w mianowniku, zgadują liczbę i zwracają żądany przypadek:
+
+```python
+from polish_inflection import kogo_czego, komu_czemu, podstawowa_forma
+
+kogo_czego("wydział")     # "wydziału"    (dopełniacz l.poj.)
+kogo_czego("wydziały")    # "wydziałów"   (liczba zgadnięta z mianownika)
+komu_czemu("jednostka")   # "jednostce"
+
+# operacja odwrotna: dowolna forma -> forma podstawowa (lemat)
+podstawowa_forma("wydziałów")   # "wydział"
+```
+
+Kanoniczne: `kogo_czego`, `komu_czemu`, `kogo_co`, `z_kim_z_czym`, `o_kim_o_czym`
+(+ aliasy `komu`/`czemu`/`z_kim`/`z_czym`/`o_kim`/`o_czym` w `polish_inflection.pytania`).
+Domyślnie przy braku formy zwracają wejściowy wyraz (passthrough — pod UI).
+Pełny opis: [`docs/api.md`](docs/api.md).
+
 ### Stałe
 
 Przypadki: `MIANOWNIK`, `DOPEŁNIACZ`, `CELOWNIK`, `BIERNIK`, `NARZĘDNIK`,
@@ -233,6 +254,26 @@ podaj("jednostki", liczba="pl")   # narrow to plural
 `Analiza` is a lightweight `NamedTuple`: `(lemat, przypadek, liczba, rodzaj)`.
 Constant names stay Polish (`MIANOWNIK`, `DOPEŁNIACZ`, …, `POJEDYNCZA`, `MNOGA`)
 and map to SGJP tags (`nom`, `gen`, …, `sg`, `pl`).
+
+### Case-question helpers (`pytania`)
+
+An ergonomic layer whose functions are named after each case's Polish question.
+They assume the input word is nominative, infer its number, and return the
+requested case; `podstawowa_forma` does the reverse (any form → lemma):
+
+```python
+from polish_inflection import kogo_czego, komu_czemu, podstawowa_forma
+
+kogo_czego("wydział")     # "wydziału"    (genitive sg)
+kogo_czego("wydziały")    # "wydziałów"   (number inferred from the nominative)
+komu_czemu("jednostka")   # "jednostce"
+podstawowa_forma("wydziałów")   # "wydział"   (base/dictionary form)
+```
+
+Canonical names: `kogo_czego`, `komu_czemu`, `kogo_co`, `z_kim_z_czym`,
+`o_kim_o_czym` (plus aliases in `polish_inflection.pytania`). On a miss they
+return the input word by default (UI-friendly passthrough). Full reference:
+[`docs/api.md`](docs/api.md).
 
 ### Data source and attribution
 

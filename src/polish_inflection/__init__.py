@@ -15,6 +15,7 @@ from .const import (
     NARZĘDNIK,
     POJEDYNCZA,
     PRZYPADKI,
+    RAISES,
     TEN_SAM_WYRAZ,
     WOŁACZ,
 )
@@ -26,16 +27,31 @@ from .core import (
     podaj,
 )
 from .errors import Analiza, BrakOdmiany
+from .pytania import (
+    kogo_co,
+    kogo_czego,
+    komu_czemu,
+    o_kim_o_czym,
+    podstawowa_forma,
+    z_kim_z_czym,
+)
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
 __all__ = [
-    # funkcje
+    # funkcje odmiany
     "odmien",
     "odmien_lub_none",
     "odmien_lub_wyraz",
     "odmien_warianty",
     "podaj",
+    # funkcje pytaniowe (kanoniczne; pełne aliasy w polish_inflection.pytania)
+    "kogo_czego",
+    "komu_czemu",
+    "kogo_co",
+    "z_kim_z_czym",
+    "o_kim_o_czym",
+    "podstawowa_forma",
     # typy / wyjątki
     "Analiza",
     "BrakOdmiany",
@@ -52,7 +68,8 @@ __all__ = [
     "POJEDYNCZA",
     "MNOGA",
     "LICZBY",
-    # sentinel
+    # sentinele
     "TEN_SAM_WYRAZ",
+    "RAISES",
     "__version__",
 ]
