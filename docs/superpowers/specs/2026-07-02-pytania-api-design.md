@@ -89,20 +89,39 @@ def kogo_czego(wyraz: str, *, liczba: str | None = None, default=TEN_SAM_WYRAZ):
 
 ### 3.2 Mechanizm
 
-1. `analizy = podaj(wyraz)`.
-2. `nom = [a for a in analizy if a.przypadek == MIANOWNIK]`.
-3. Ustal liczbę:
-   - `liczba` podane → użyj go;
-   - inaczej z `nom`: jeśli wszystkie `nom` mają jedną liczbę → ta liczba;
-     jeśli `nom` jest niejednoznaczne co do liczby (nieodmienne, np. *attaché*
-     mian. l.poj. = l.mn.) → **POJEDYNCZA**;
-   - brak `nom` (wejście nie jest mianownikiem, np. *jednostce*), ale wyraz
-     znany → **POJEDYNCZA** (best-effort, udokumentowane);
-   - wyraz nieznany → obsługa `default` (patrz 5).
-4. Ustal lemat: ze zbioru `nom` (lub, gdy pusty, z wszystkich `analizy`) weź
-   **pierwszy po sortowaniu** lemat (deterministycznie; homografia → pierwszy).
-5. `forma = odmien(lemat, przypadek, liczba_efektywna, default=None)`;
-   jeśli `None` (slot nie istnieje, np. brak żądanej liczby) → obsługa `default`.
+KLUCZOWA zasada: **lemat i liczbę bierzemy z JEDNEJ, tej samej analizy** —
+nigdy nie mieszamy lematu z jednej analizy z liczbą z innej (inaczej dla
+homografów międzyleksemowych powstaje niespójna para → zły wynik lub cichy
+fallback).
+
+```python
+def _pytanie(wyraz, przypadek, liczba, default):
+    analizy = podaj(wyraz)
+    if not analizy:                         # wyraz nieznany
+        return _rozwiaz_brak(wyraz, default)
+    nom = [a for a in analizy if a.przypadek == MIANOWNIK]
+    kandydaci = nom or analizy              # preferuj mianownik; inaczej best-effort
+    # jedna analiza deterministycznie: alfabetycznie po lemacie, przy remisie sg < pl
+    wybrana = min(kandydaci, key=lambda a: (a.lemat, 0 if a.liczba == POJEDYNCZA else 1))
+    liczba_efektywna = liczba if liczba is not None else wybrana.liczba
+    forma = odmien(wybrana.lemat, przypadek, liczba_efektywna, default=None)
+    if forma is None:                       # slot nie istnieje (np. brak danej liczby)
+        return _rozwiaz_brak(wyraz, default)
+    return forma
+```
+
+Konsekwencje (wszystkie zamierzone i pokryte testami):
+- **Mianownik l.poj./l.mn.** → liczba z wybranej analizy mianownikowej;
+  `kogo_czego("wydziały")` → l.mn.
+- **Nieodmienne / niejednoznaczne co do liczby** (np. *attaché* mian. l.poj. =
+  l.mn.) → klucz sortowania preferuje `sg` → **POJEDYNCZA**.
+- **Homograf międzyleksemowy** (forma = mian. l.poj. lematu B i mian. l.mn.
+  lematu A, np. plurale tantum): `min` wybiera JEDEN leksem i JEGO liczbę →
+  `odmien` dostaje spójną parę (bez cichego błędu z B1).
+- **Wejście oblique** (nie mianownik, np. *wydziałów* = dop. l.mn.): brak `nom`
+  → `kandydaci = analizy` → bierzemy liczbę z wybranej analizy (l.mn.
+  zachowana, nie degradowana do l.poj.). To best-effort poza kontraktem
+  „wejście w mianowniku" — udokumentowane.
 
 ---
 
@@ -113,18 +132,22 @@ przypadku i zwraca **formę podstawową** (lemat = mianownik l.poj.).
 
 ```python
 def podstawowa_forma(wyraz: str, *, default=TEN_SAM_WYRAZ) -> str | None:
-    """Forma podstawowa (mianownik l.poj., lemat) dowolnej formy fleksyjnej.
+    """Forma podstawowa (lemat SGJP) dowolnej formy fleksyjnej.
 
-    Zawsze zwraca l.poj. (forma podstawowa kolapsuje liczbę). Homografia ->
-    pierwszy lemat deterministycznie. `default` jak w funkcjach pytaniowych.
+    Zwraca lemat = forma słownikowa: mianownik l.poj. dla rzeczowników
+    policzalnych; dla plurale tantum (np. `drzwi`, `spodnie`) lemat jest
+    l.MNOGIEJ (nie ma l.poj.). Homografia -> pierwszy lemat deterministycznie.
+    `default` jak w funkcjach pytaniowych.
     """
 ```
 
-Mechanizm: `analizy = podaj(wyraz)`; brak → obsługa `default`; inaczej zwróć
-`sorted(a.lemat for a in analizy)[0]`. (Lemat SGJP JEST mianownikiem l.poj.)
+Mechanizm: `analizy = podaj(wyraz)`; brak → `_rozwiaz_brak(wyraz, default)`;
+inaczej zwróć `sorted(a.lemat for a in analizy)[0]`. (Lemat SGJP to forma
+słownikowa.)
 
-Uwaga: nie ma parametru `liczba` — forma podstawowa jest z definicji l.poj.
-`podstawowa_forma("wydział")` (już mianownik l.poj.) → `"wydział"` (idempotencja).
+Uwaga: nie ma parametru `liczba`. `podstawowa_forma("wydział")` (już mianownik
+l.poj.) → `"wydział"` (idempotencja). `podstawowa_forma("drzwiach")` → `"drzwi"`
+(plurale tantum — lemat l.mn.; testowane, by zachowanie było przypięte).
 
 ---
 
@@ -152,10 +175,15 @@ def _rozwiaz_brak(wyraz, default):
 
 ### 5.1 Ujednolicenie `odmien`
 
-`odmien` używa dziś wewnętrznego `_BRAK`. Zamieniamy na publiczny `RAISES`:
-- `odmien(..., default=RAISES)` staje się wartością domyślną — zachowanie
-  identyczne (brak formy bez podania `default` nadal rzuca `BrakOdmiany`).
-- To czysto wewnętrzna spójność; API `odmien` bez zmian obserwowalnych.
+`odmien` używa dziś wewnętrznego `_BRAK`. Zamieniamy TYLKO nazwę sentinela na
+publiczny `RAISES` (`default=RAISES` jako wartość domyślna). `odmien` zachowuje
+**własny inline `raise`** z dotychczasowym payloadem `BrakOdmiany((wyraz,
+przypadek, liczba))` — NIE deleguje do `_rozwiaz_brak` (który rzuca
+`BrakOdmiany(wyraz)`), żeby nie zmienić `exc.args`. Zachowanie obserwowalne
+`odmien` bez zmian; to czysto wewnętrzna zmiana nazwy.
+
+(Funkcje `pytania` oraz `podstawowa_forma` używają `_rozwiaz_brak`, którego
+`BrakOdmiany(wyraz)` niesie tylko wyraz — to nowe API, spójne wewnętrznie.)
 
 Różnica domyślnych: `odmien` domyślnie **RAISES** (twarde), funkcje pytaniowe i
 `podstawowa_forma` domyślnie **TEN_SAM_WYRAZ** (miękkie/passthrough — pod UI).
@@ -183,10 +211,15 @@ Różnica domyślnych: `odmien` domyślnie **RAISES** (twarde), funkcje pytaniow
 - Zgadywanie liczby: wejście l.mn. → wynik l.mn.; `liczba=MNOGA` wymusza.
 - Aliasy: `komu is komu_czemu` itd. (ten sam obiekt) i równość wyników.
 - `default`: passthrough (domyślnie), `None`, wartość, `RAISES`→`BrakOdmiany`.
+- **Wejście oblique** (best-effort, S4): `kogo_czego("wydziałów")` zachowuje
+  l.mn. (nie degraduje do l.poj.).
+- **Nieznany wyraz** (S1): nie rzuca `IndexError`, idzie przez `default`.
 - `podstawowa_forma`: `"wydziałów"->"wydział"`, `"jednostce"->"jednostka"`,
-  idempotencja na mianowniku, nieznane→`default`.
+  idempotencja na mianowniku, nieznane→`default`, **plurale tantum**
+  `"drzwiach"->"drzwi"` (lemat l.mn. — przypięte, S2).
 - Round-trip: `kogo_czego(podstawowa_forma(x))` spójne dla próbki.
-- Testy fixture-owe (jak w `test_core`) — bez realnych 42 MB.
+- Testy fixture-owe (jak w `test_core`) — bez realnych 42 MB. Fixtura
+  domenowa dostaje kilka form pluralia-tantum (`drzwi`) do testu S2/charakteryzacji.
 
 Testy charakteryzacyjne na realnych danych (guarded) — dopisać kilka asertów w
 `test_characterization.py` (opcjonalnie).
