@@ -1,5 +1,8 @@
 # polish-inflection
 
+[![CI](https://github.com/iplweb/polish-inflection/actions/workflows/ci.yml/badge.svg)](https://github.com/iplweb/polish-inflection/actions/workflows/ci.yml)
+[![License: BSD-2-Clause](https://img.shields.io/badge/License-BSD--2--Clause-blue.svg)](LICENSE)
+
 Lekka, dane-only odmiana polskich **rzeczowników** przez przypadki.
 Dane pochodzą ze [Słownika gramatycznego języka polskiego (SGJP)](https://morfeusz.sgjp.pl/),
 wyszukiwanie oparte jest o kompaktowy indeks `marisa-trie` (mmap, ~1 µs/lookup).

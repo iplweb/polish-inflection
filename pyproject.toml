@@ -5,7 +5,7 @@ description = "Lekka odmiana polskich rzeczowników przez przypadki (dane SGJP, 
 readme = "README.md"
 requires-python = ">=3.9"
 license = { text = "BSD-2-Clause" }
-authors = [{ name = "Michał Pasternak" }]
+authors = [{ name = "Michał Pasternak", email = "m@iplweb.pl" }]
 keywords = ["polish", "inflection", "declension", "nlp", "sgjp", "morphology", "przypadki", "odmiana"]
 classifiers = [
     "Development Status :: 3 - Alpha",
