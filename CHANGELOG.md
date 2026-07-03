@@ -9,6 +9,63 @@ PyPI: <https://pypi.org/project/polish-inflection/>
 
 ## [Nieopublikowane]
 
+## [0.6.0] — 2026-07-03
+
+### Dodano
+- **`zgadnij_przymiotnik(forma)`** — kierunek zwrotny dla przymiotnika (forma →
+  `[Analiza]`), odwrotność `odmien_przymiotnik`. **Regułowe zgadywanie** bez
+  indeksu (odwrócenie paradygmatu przez generate-and-test), więc zero przyrostu
+  danych. Nazwa mówi wprost, że to heurystyka: rozpoznaje *kształt* i może
+  nadgenerować analizy dla form, które tylko wyglądają jak przymiotnik (np.
+  rzeczownik `dupa` → zgadnięty `dupy`). Zwalidowane przeciw SGJP (recall l.poj.
+  ~99,6%). `podaj` (rzeczowniki, leksykalne) pozostaje rozdzielone — **NIC nie
+  robi z przymiotnikami**, żeby nie zatruwać pewnych wyników zgadywankami.
+
+### Poprawiono
+- **`odmien_fraze`: frazy pisane w całości małą literą traktowane jak zwykłe
+  rzeczowniki**, nie nazwy własne. Wcześniej homograf nazwy miejscowej z
+  gazeteera SGJP mógł „ukraść" rolę głowy i wymusić kapitalizację —
+  `odmien_fraze("dupa wołowa", DOPEŁNIACZ)` dawało błędne `"dupa Wołowa"` (wieś
+  Wołowo), teraz poprawnie `"dupy wołowej"` (małą literą). Do gazeteera schodzimy
+  tylko, gdy inaczej słowa nie znajdziemy.
+- **`odmien_fraze`: zgoda przymiotnika w liczbie mnogiej.** Rozpoznanie lematu
+  przydawki jest teraz niezależne od docelowej liczby (przez `zgadnij_przymiotnik`),
+  więc `odmien_fraze("Uniwersytet Lubelski", DOPEŁNIACZ, MNOGA)` daje
+  `"Uniwersytetów Lubelskich"` (było `"Uniwersytetów Lubelski"` — przymiotnik
+  zostawał w l.poj.).
+
+## [0.5.2] — 2026-07-03
+
+### Poprawiono
+- **`odmien_fraze`: zgoda przymiotnika w bierniku wg żywotności głowy.** Biernik
+  l.poj. przymiotnika zależy od żywotności rzeczownika-głowy (żywotny: biernik =
+  dopełniacz — `nowego pracownika`; nieżywotny: biernik = mianownik — `Uniwersytet
+  Lubelski`). Żywotność jest czytana z form głowy.
+
+## [0.5.1] — 2026-07-03
+
+### Poprawiono
+- **`odmien_fraze` zamraża ogon tylko na dopełniaczu, nie na bierniku.** Homografy
+  przymiotników odmiejscowych (nom/acc/voc, np. `polski`, `Lubelski`) muszą się
+  odmieniać jak przydawki, a nie zamrażać — zamrażamy dopiero na kanonicznym
+  sygnale dopełnienia zależnego (dopełniacz).
+
+### Dodano
+- **Alias `odmien_rzeczownik`** dla `odmien` (symetria z `odmien_przymiotnik` /
+  `odmien_fraze`) — ta sama funkcja.
+
+## [0.5.0] — 2026-07-03
+
+### Dodano
+- **`odmien_przymiotnik(lemat, przypadek, rodzaj, liczba=POJEDYNCZA)`** — regułowa
+  odmiana przymiotnika (stopień równy), bez indeksu SGJP: deklinacja przymiotnika
+  jest regularna, więc generujemy ją regułą (kilka KB kodu zamiast +46 MB danych).
+  Zwalidowane przeciw SGJP: l.poj. 99,9%, l.mn. 99,6%.
+- **`odmien_fraze(fraza, przypadek, liczba=POJEDYNCZA)`** — odmiana wielowyrazowych
+  **nazw własnych instytucji** (heurystyczny parser): wykrywa rzeczownik-głowę,
+  uzgadnia przymiotniki, zamraża ogon od pierwszego dopełnienia zależnego lub
+  markera `im.`.
+
 ## [0.4.1] — 2026-07-03
 
 ### Dodano
@@ -94,7 +151,11 @@ PyPI: <https://pypi.org/project/polish-inflection/>
 - Pipeline BUILD (`polish-inflection-build build` / `refresh-sgjp`), CI
   (Python 3.9–3.13), pre-commit, README PL→EN, licencje (kod BSD-2 + dane SGJP).
 
-[Nieopublikowane]: https://github.com/iplweb/polish-inflection/compare/v0.4.1...HEAD
+[Nieopublikowane]: https://github.com/iplweb/polish-inflection/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/iplweb/polish-inflection/compare/v0.5.2...v0.6.0
+[0.5.2]: https://github.com/iplweb/polish-inflection/compare/v0.5.1...v0.5.2
+[0.5.1]: https://github.com/iplweb/polish-inflection/compare/v0.5.0...v0.5.1
+[0.5.0]: https://github.com/iplweb/polish-inflection/compare/v0.4.1...v0.5.0
 [0.4.1]: https://github.com/iplweb/polish-inflection/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/iplweb/polish-inflection/compare/v0.3.1...v0.4.0
 [0.3.1]: https://github.com/iplweb/polish-inflection/compare/v0.3.0...v0.3.1
