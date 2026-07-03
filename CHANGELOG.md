@@ -9,6 +9,23 @@ PyPI: <https://pypi.org/project/polish-inflection/>
 
 ## [Nieopublikowane]
 
+## [0.7.1] — 2026-07-03
+
+### Poprawiono
+- **`odmien_fraze`: przymiotnik PRZED głową odmienia się** (homograf rodzajowy).
+  `odmien_fraze("Polski Instytut Weterynaryjny", DOPEŁNIACZ)` daje
+  `"Polskiego Instytutu Weterynaryjnego"` (było: cała fraza zamrożona, bo „Polski"
+  było błędnie brane za rzeczownik-głowę „Polska"). Wybór głowy jest teraz
+  LEKSYKALNY (`podaj_przymiotnik`) — token będący prawdziwym przymiotnikiem nie
+  zostaje głową, gdy obok jest rzeczownik; przydawka przed głową ma pierwszeństwo
+  nad zamrożeniem na dopełniaczu. `"Instytut Polski"` → `"Instytutu Polski"`
+  zachowane (pozycja rozstrzyga homograf: przed głową = przymiotnik, po głowie z
+  czytaniem dopełniacza = nazwa własna).
+
+### Dodano
+- `examples/07_przymiotniki.py`, `examples/08_frazy.py` — przykłady dla
+  `odmien_przymiotnik`/`podaj_przymiotnik` i `odmien_fraze`.
+
 ## [0.7.0] — 2026-07-03
 
 ### Zmieniono (BREAKING)
@@ -170,7 +187,8 @@ PyPI: <https://pypi.org/project/polish-inflection/>
 - Pipeline BUILD (`polish-inflection-build build` / `refresh-sgjp`), CI
   (Python 3.9–3.13), pre-commit, README PL→EN, licencje (kod BSD-2 + dane SGJP).
 
-[Nieopublikowane]: https://github.com/iplweb/polish-inflection/compare/v0.7.0...HEAD
+[Nieopublikowane]: https://github.com/iplweb/polish-inflection/compare/v0.7.1...HEAD
+[0.7.1]: https://github.com/iplweb/polish-inflection/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/iplweb/polish-inflection/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/iplweb/polish-inflection/compare/v0.5.2...v0.6.0
 [0.5.2]: https://github.com/iplweb/polish-inflection/compare/v0.5.1...v0.5.2

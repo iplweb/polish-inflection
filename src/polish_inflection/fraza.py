@@ -19,10 +19,8 @@ from .const import (
     DOPEŁNIACZ,
     MIANOWNIK,
     MĘSKI,
-    NIJAKI,
     POJEDYNCZA,
     TEN_SAM_WYRAZ,
-    ŻEŃSKI,
 )
 from .core import _rozwiaz_brak, odmien, podaj
 from .przymiotnik import odmien_przymiotnik, podaj_przymiotnik
@@ -72,22 +70,13 @@ def _ma_czytanie_dopelniaczowe(token: str, proper: bool = True) -> bool:
     return any(a.przypadek == DOPEŁNIACZ for a in _analizy(token, proper))
 
 
-def _adj_lemat(token: str, rodzaj: str):
-    """Wyprowadź lemat przymiotnika (mian. l.poj. m) z formy mianownikowej w
-    rodzaju ``rodzaj``. None, jeśli token nie ma kształtu mian. przydawki."""
-    t = token.lower()
-    if rodzaj.startswith(MĘSKI):  # MĘSKI oraz podtypy m1/m2/m3
-        return t if t.endswith(("y", "i")) else None
-    if rodzaj == ŻEŃSKI:
-        if t.endswith("a"):
-            stem = t[:-1]
-            return stem + ("i" if stem[-1:] in "kg" else "y")
-        return None
-    if rodzaj == NIJAKI:
-        if t.endswith("e"):
-            stem = t[:-1]
-            return stem if stem.endswith("i") else stem + "y"
-    return None
+def _jest_przymiotnik(token: str) -> bool:
+    """Czy token ma mianownikowe czytanie PRZYMIOTNIKOWE (leksykalnie, przez
+    :func:`podaj_przymiotnik`)? Rozstrzyga homograf przymiotnik/rzeczownik przy
+    wyborze głowy niezależnie od rodzaju: „Polski" → przymiotnik (demotuj z roli
+    głowy), „Instytut" → nie (kandydat na głowę). Zastępuje kruchą heurystykę
+    stringową, która myliła się na homografach rodzajowych (Polski↔Polska)."""
+    return any(a.przypadek == MIANOWNIK for a in podaj_przymiotnik(token))
 
 
 def _lemat_przydawki(token: str, rodzaj: str):
@@ -112,13 +101,13 @@ def _zachowaj_wielkosc(wzor: str, forma: str) -> str:
 
 
 def _wybierz_glowe(tokeny, proper: bool = True):
-    """(indeks, analiza) głowy. Preferuj kandydata NIE wyglądającego na przymiotnik
-    (żeby „Polski Uniwersytet" wziął Uniwersytet, nie Polski)."""
+    """(indeks, analiza) głowy. Preferuj kandydata NIE będącego leksykalnie
+    przymiotnikiem (żeby „Polski Instytut" wziął Instytut, nie Polski)."""
     kandydaci = [(i, a) for i, t in enumerate(tokeny) if (a := _mianownikowa(t, proper))]
     if not kandydaci:
         return None, None
     for i, a in kandydaci:
-        if _adj_lemat(tokeny[i], a.rodzaj) is None:
+        if not _jest_przymiotnik(tokeny[i]):
             return i, a
     return kandydaci[0]
 
@@ -191,10 +180,11 @@ def _odmien(tokeny, przypadek: str, liczba: str, proper: bool):
     wynik = list(tokeny)
     wynik[head_idx] = _zachowaj_wielkosc(tokeny[head_idx], forma_glowy)
 
-    # Przydawki przed głową (rzadkie, ale np. „Wyższa Szkoła", „Katolicki Uniwersytet").
+    # Przydawki PRZED głową (np. „Wyższa Szkoła", „Katolicki Uniwersytet", „Polski
+    # Instytut"). Zawsze przymiotnikowe — dopełnienie dopełniaczowe nie stoi przed
+    # głową — więc przymiotnik ma pierwszeństwo NAWET przy homograficznym czytaniu
+    # dopełniacza („Polski" = przym. polski / dop. Polska): odmieniamy jako przym.
     for i in range(head_idx):
-        if _ma_czytanie_dopelniaczowe(tokeny[i], proper):
-            continue  # dopełnienie dopełniaczowe — zostaw bez zmian
         lemat = _lemat_przydawki(tokeny[i], rodzaj)
         if lemat:
             f = odmien_przymiotnik(lemat, przypadek, rodzaj, liczba, default=None)

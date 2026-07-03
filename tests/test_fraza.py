@@ -54,6 +54,10 @@ KORPUS = [
     # wielkość liter rozstrzyga: mała = przymiotnik (odmienia), wielka = nazwa własna (zamraża)
     ("instytut polski", DOPEŁNIACZ, "instytutu polskiego"),
     ("Instytut Polski", DOPEŁNIACZ, "Instytutu Polski"),
+    # POZYCJA rozstrzyga homograf "Polski": PRZED głową = przymiotnik (odmienia),
+    # PO głowie z czytaniem dopełniaczowym = nazwa własna (zamraża, wyżej).
+    ("Polski Instytut Weterynaryjny", DOPEŁNIACZ, "Polskiego Instytutu Weterynaryjnego"),
+    ("Polski Uniwersytet", DOPEŁNIACZ, "Polskiego Uniwersytetu"),
     # biernik: żywotność głowy rządzi zgodą przymiotnika (żywotny: biernik=dopełniacz)
     ("nowy pracownik", BIERNIK, "nowego pracownika"),
     ("stary nauczyciel", BIERNIK, "starego nauczyciela"),
