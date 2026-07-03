@@ -1,202 +1,242 @@
-# Split `polish-inflection` → kod + `polish-inflection-data`
+# Split `polish-inflection`: kod + dane rzeczowników + dane przymiotników
 
 **Data:** 2026-07-03
 **Status:** projekt zaakceptowany (do przejścia w plan implementacji)
 
 ## Problem
 
-Zbudowane indeksy SGJP (`odmien.marisa` ≈ 24 MB, `podaj.marisa` ≈ 25 MB) jadą
-dziś w wheelu pakietu `polish-inflection`. Skutek: **każde wydanie kodu re-publikuje
-~49 MB słownika na PyPI**, choć dane zmieniają się rzadko (przy nowej edycji SGJP,
-kilka razy w roku), a kod — często. Cykl wydań kodu jest sztywno sprzężony z cyklem
-danych.
+1. Zbudowane indeksy SGJP (`odmien.marisa` ≈ 24 MB, `podaj.marisa` ≈ 25 MB) jadą
+   w wheelu `polish-inflection`, więc **każde wydanie kodu re-publikuje ~49 MB**
+   słownika — choć dane zmieniają się rzadko, a kod często.
+2. Rozpoznawanie przymiotników (`zgadnij_przymiotnik`) jest **regułowe bez oparcia
+   w leksykonie** → nadgeneruje: dla `"Michała"` (forma rzeczownika `Michał`)
+   proponuje nieistniejący przymiotnik `michały`. To realny defekt jakości.
 
 ## Cel
 
-Rozdzielić na dwa pakiety PyPI z niezależnymi cyklami wydań:
+Trzy pakiety PyPI o niezależnych cyklach wydań:
 
-- **`polish-inflection`** — sam kod (logika odmiany/analizy). Wheel odchudzony do
-  kilkudziesięciu KB. Wydania częste, tanie.
-- **`polish-inflection-data`** — tylko zbudowane indeksy `.marisa`, wersjonowane
-  **wg wersji słownika SGJP**. Wydawane tylko przy nowej edycji SGJP.
+- **`polish-inflection`** — sam kod. Wheel odchudzony do ~kilkudziesięciu KB.
+- **`polish-inflection-data-nouns`** — indeksy rzeczowników (`odmien.marisa` +
+  `podaj.marisa`), ~49 MB. Wersjonowane wg edycji SGJP.
+- **`polish-inflection-data-adjectives`** — zbiór **baz deklinacyjnych**
+  przymiotników (0,25 MB). Grunt leksykalny dla rozpoznawania — koniec `michały`.
 
-UX bez regresji: `pip install polish-inflection` dalej działa od ręki (dane
-ciągnięte jako twarda zależność).
+Baza `polish-inflection` **twardo wymaga OBU** pakietów danych. UX bez regresji:
+`pip install polish-inflection` ciągnie komplet.
 
-## Decyzje (rozstrzygnięte w brainstormingu)
+## Decyzje (brainstorming)
 
 | Decyzja | Wybór |
 |---|---|
-| Mechanizm odnajdywania danych | Osobny pakiet importowalny `polish_inflection_data` |
-| Struktura repo | Monorepo; korzeń = pakiet kodu, `data-package/` = pakiet danych |
-| Wersjonowanie danych | Kalendarzowe `YYYY.M.D` z daty SGJP; `.postN` przy przebudowie schematu |
-| Zależność kodu od danych | Twarda, dolny pin: `polish-inflection-data>=<min zgodna ze SCHEMA>` |
-| Zgodność formatu `.marisa` | Strażnik schematu: `polish_inflection_data.SCHEMA` sprawdzany przez kod |
+| Mechanizm danych | Osobne pakiety importowalne (`polish_inflection_data_nouns`, `…_adjectives`) |
+| Struktura repo | Monorepo; korzeń = kod, `data-package-nouns/`, `data-package-adjectives/` |
+| Wersjonowanie danych | Kalendarzowe `YYYY.M.D` z daty SGJP; `.postN` przy zmianie schematu |
+| Zależność kodu | Twarda, dolny pin na OBA pakiety danych |
+| Zgodność `.marisa` | Strażnik schematu (`SCHEMA` per pakiet danych) |
+| Rozpoznawanie przymiotnika | **Leksykalne**: reguły (generate-and-test) filtrowane zbiorem baz |
+| Nazwa funkcji | `zgadnij_przymiotnik` → **`podaj_przymiotnik`** (już nie zgaduje) |
 | Zakres tej rundy | Spec + plan; implementacja i wydania osobno |
+
+## Kluczowa idea: grunt leksykalny bez indeksu form
+
+Fałszywe pozytywy (`Michała → michały`) biorą się z braku leksykonu, nie z reguł
+(reguły mają recall 99,6%). Nie trzymamy **wszystkich form** przymiotników (742k,
+~10–20 MB pełnego reverse indeksu). Trzymamy tylko **zbiór baz deklinacyjnych** =
+mianownik l.poj. rodzaju męskiego, **wszystkich stopni** (pos/com/sup):
+
+- Zmierzone na SGJP 20260628: **70 250 baz → 0,25 MB** marisa `Trie`.
+- To dokładnie to, co silnik reguł nazywa „lematem" (forma słownikowa `-y/-i`,
+  od której odmienia). Musi obejmować stopnie wyższe/najwyższe, bo np. „Wyższa
+  Szkoła" ma bazę `wyższy` (stopień wyższy od `wysoki` — NIE `adj:pos` w SGJP).
+
+Weryfikacja członkostwa (SGJP 20260628):
+
+| baza | w zbiorze | skutek |
+|---|---|---|
+| `wyższy`, `najwyższy`, `wysoki` | ✓ | „Wyższa Szkoła" działa |
+| `lubelski`, `medyczny`, `wołowy`, `lekarski`, `główny` | ✓ | nazwy instytucji działają |
+| `michały`, `dupy` | ✗ | false-positives wyeliminowane |
+
+`podaj_przymiotnik(forma)`: reguły generują kandydatów na bazę → **odrzuć te spoza
+zbioru** → dla pozostałych zweryfikuj generacją, że `forma` faktycznie z nich
+wynika. Ugruntowane w słowniku, silnik reguł (forward) zostaje bez zmian.
 
 ## Architektura
 
-### Układ repo
+### Układ repo (monorepo, korzeń = kod)
 
 ```
-polish-inflection/                      # repo iplweb/polish-inflection (nazwa bez zmian)
-├── pyproject.toml                      # PAKIET KODU (name="polish-inflection"), korzeń jak dziś
-├── src/polish_inflection/              # kod — BEZ plików .marisa
-│   ├── core.py                         #   zmieniony locator + strażnik schematu
-│   ├── build.py                        #   narzędzie buildu (zostaje tu — kod jest właścicielem schematu)
+polish-inflection/                      # repo iplweb/polish-inflection
+├── pyproject.toml                      # PAKIET KODU (name="polish-inflection")
+├── src/polish_inflection/
+│   ├── core.py                         #   locator rzeczowników + strażnik schematu
+│   ├── przymiotnik.py                  #   podaj_przymiotnik: reguły + filtr zbioru baz
+│   ├── _dane.py                        #   NOWY: wspólne locatory obu pakietów danych
+│   ├── build.py                        #   buduje indeksy rzeczowników I zbiór baz adj
 │   └── … (bez zmian)
 ├── tests/
-├── data-package/                       # NOWY, samodzielny pakiet danych
-│   ├── pyproject.toml                  #   name="polish-inflection-data", version="YYYY.M.D"
-│   ├── README.md                       #   krótki; atrybucja SGJP, że to artefakt danych
-│   ├── src/polish_inflection_data/
-│   │   ├── __init__.py                 #   wystawia KATALOG, SCHEMA, WERSJA_SGJP
-│   │   └── data/
-│   │       ├── odmien.marisa
-│   │       ├── podaj.marisa
-│   │       └── BUILD_INFO.json
-│   └── sgjp/                           #   surowy SGJP (git-lfs) przeniesiony z data/sgjp/
-│       ├── sgjp-YYYYMMDD.tab.gz
-│       ├── PIN.json
-│       └── LICENSE.sgjp
+├── data-package-nouns/
+│   ├── pyproject.toml                  #   name="polish-inflection-data-nouns", ver=YYYY.M.D
+│   ├── src/polish_inflection_data_nouns/
+│   │   ├── __init__.py                 #   KATALOG, SCHEMA, WERSJA_SGJP
+│   │   └── data/  odmien.marisa, podaj.marisa, BUILD_INFO.json
+│   └── sgjp/  sgjp-YYYYMMDD.tab.gz, PIN.json, LICENSE.sgjp   # surowy SGJP (git-lfs)
+├── data-package-adjectives/
+│   ├── pyproject.toml                  #   name="polish-inflection-data-adjectives", ver=YYYY.M.D
+│   └── src/polish_inflection_data_adjectives/
+│       ├── __init__.py                 #   KATALOG, SCHEMA, WERSJA_SGJP
+│       └── data/  przymiotniki.marisa, BUILD_INFO.json
 └── docs/, LICENSE, NOTICE.md, …
 ```
 
-Wariant „pełne `packages/`" świadomie odrzucony — rusza CI/pre-commit/ścieżki bez
-proporcjonalnego zysku.
+Surowy SGJP (`.tab.gz`) leży w `data-package-nouns/sgjp/` (jedno źródło; oba buildy
+czytają ten sam plik). Testy charakteryzacyjne czytają go stamtąd.
 
-### Pakiet `polish-inflection-data`
+### Pakiety danych
 
-Zawiera **wyłącznie** artefakty danych — zero logiki. `__init__.py`:
+Każdy zawiera tylko artefakty + cienki `__init__.py` (zero logiki):
 
 ```python
+# polish_inflection_data_nouns / _adjectives — __init__.py
 from importlib.resources import files
 from pathlib import Path
 import json
 
-#: Wersja formatu kluczy/wartości .marisa (CONTRACT §D). Bump gdy zmienia się schemat.
-SCHEMA = 1
-
-KATALOG = Path(str(files("polish_inflection_data") / "data"))
-
-def _build_info() -> dict:
-    return json.loads((KATALOG / "BUILD_INFO.json").read_text(encoding="utf-8"))
-
-#: np. "pl.sgjp.sgjp-20260628"
-WERSJA_SGJP = _build_info().get("wersja_sgjp")
+SCHEMA = 1                                   # wersja formatu artefaktów tego pakietu
+KATALOG = Path(str(files(__name__) / "data"))
+WERSJA_SGJP = json.loads((KATALOG / "BUILD_INFO.json").read_text("utf-8")).get("wersja_sgjp")
 ```
 
-- `pyproject.toml`: `name = "polish-inflection-data"`, `version = "YYYY.M.D"`,
-  brak zależności runtime (pliki są statyczne; czyta je kod). Hatchling pakuje
-  `*.marisa` + `BUILD_INFO.json` jako artefakty.
-- Wersja = kalendarzowa z daty SGJP: `sgjp-20260628` → `2026.6.28`. Przy przebudowie
-  tych samych danych po zmianie `SCHEMA` → `2026.6.28.post1`.
+- `polish-inflection-data-nouns`: `odmien.marisa` + `podaj.marisa` + `BUILD_INFO.json`.
+- `polish-inflection-data-adjectives`: `przymiotniki.marisa` (marisa `Trie` baz,
+  bez wartości) + `BUILD_INFO.json`.
+- Wersja obu = kalendarzowa z daty SGJP (`20260628` → `2026.6.28`); `.postN` przy
+  zmianie schematu bez zmiany SGJP.
 
-### Zmiany w kodzie (`polish_inflection`)
-
-`core.py`:
+### Kod: `_dane.py` (wspólne locatory)
 
 ```python
-_OCZEKIWANY_SCHEMA = 1  # kod wie, jakiego formatu .marisa oczekuje
+_SCHEMA_NOUNS = 1
+_SCHEMA_ADJ = 1
 
-def _domyslny_katalog_danych() -> Path:
+def katalog_nouns() -> Path:
+    return _zaladuj("polish_inflection_data_nouns", _SCHEMA_NOUNS, "polish-inflection-data-nouns")
+
+def katalog_adjectives() -> Path:
+    return _zaladuj("polish_inflection_data_adjectives", _SCHEMA_ADJ, "polish-inflection-data-adjectives")
+
+def _zaladuj(modul: str, oczekiwany: int, dist: str) -> Path:
     try:
-        import polish_inflection_data as dane
+        dane = importlib.import_module(modul)
     except ModuleNotFoundError as e:
+        raise RuntimeError(f"Brak pakietu danych. Zainstaluj: pip install {dist}") from e
+    if dane.SCHEMA != oczekiwany:
         raise RuntimeError(
-            "Brak pakietu danych. Zainstaluj: pip install polish-inflection-data"
-        ) from e
-    if dane.SCHEMA != _OCZEKIWANY_SCHEMA:
-        raise RuntimeError(
-            f"Niezgodny schemat danych: kod oczekuje {_OCZEKIWANY_SCHEMA}, "
-            f"polish-inflection-data ma {dane.SCHEMA}. Zaktualizuj polish-inflection-data."
+            f"Niezgodny schemat {dist}: kod oczekuje {oczekiwany}, pakiet ma {dane.SCHEMA}."
         )
     return dane.KATALOG
 ```
 
-- Strażnik schematu odpala się leniwie (przy pierwszym `_wczytaj`), więc sam import
-  `polish_inflection` nie wymusza ładowania danych.
-- `_ustaw_katalog_danych(sciezka)` (hook testowy) bez zmian — testy mogą wskazać
-  dowolny katalog, omijając pakiet danych.
-- Zależność w `pyproject.toml` kodu: `polish-inflection-data>=2026.6.28`.
+- `core.py`: `_domyslny_katalog_danych()` → `katalog_nouns()`. `_ustaw_katalog_danych`
+  (hook testowy rzeczowników) bez zmian.
+- `przymiotnik.py`: leniwie ładuje `przymiotniki.marisa` z `katalog_adjectives()`,
+  cache modułowy (mmap), z hookiem testowym analogicznym do rzeczowników.
+- Strażniki schematu leniwe — sam `import polish_inflection` nie ładuje danych.
+- Zależności kodu: `["marisa-trie>=1.0", "polish-inflection-data-nouns>=2026.6.28",
+  "polish-inflection-data-adjectives>=2026.6.28"]`.
 
-### Build i wydania
+### `podaj_przymiotnik` — ugruntowanie
 
-- `build.py` **zostaje w pakiecie kodu** — kod jest właścicielem definicji schematu.
-  `zbuduj_z_tab(..., --out data-package/src/polish_inflection_data/data)` wpisuje do
-  `BUILD_INFO.json` również `schema` (= `_OCZEKIWANY_SCHEMA`), żeby artefakt niósł
-  swój schemat jawnie. `SCHEMA` w `__init__.py` pakietu danych ustawiany ręcznie
-  przy wydaniu danych (musi zgadzać się z `BUILD_INFO["schema"]`; walidowane testem).
-- **Wydanie danych** (nowy SGJP): `refresh-sgjp` → `build --out data-package/…` →
-  ustaw `version` = `YYYY.M.D` i `SCHEMA` → `uv build` + `uv publish` w `data-package/`.
-- **Wydanie kodu**: jak dziś, ale wheel bez `.marisa` (tiny). Gdy zmienia się schemat
-  `.marisa` → bump `_OCZEKIWANY_SCHEMA`, przebuduj i wydaj dane (`.postN` lub nowa
-  data), podnieś dolny pin zależności.
-
-## Przepływ danych (runtime, u użytkownika)
-
-```
-import polish_inflection            # nie ładuje danych
-odmien("wydział", DOPEŁNIACZ)
-  └─ _trie_odmien() → _wczytaj("odmien.marisa")
-       └─ _domyslny_katalog_danych()
-            ├─ import polish_inflection_data           # twarda zależność, obecny
-            ├─ sprawdź dane.SCHEMA == _OCZEKIWANY_SCHEMA
-            └─ zwróć dane.KATALOG
-       └─ marisa_trie.mmap(KATALOG / "odmien.marisa")  # mmap, jak dziś
+```python
+def podaj_przymiotnik(forma):
+    f = forma.lower()
+    bazy = _zbior_baz()                       # marisa Trie z pakietu adjectives (mmap)
+    wynik = set()
+    for lemat in _kandydaci_lematow(f):
+        if lemat not in bazy:                 # NOWE: filtr leksykalny — koniec 'michały'
+            continue
+        # dalej jak dziś: weryfikacja generacją po wszystkich slotach
+        ...
+    return sorted(wynik, ...)
 ```
 
-Mechanika mmap i wydajność bez zmian — zmienia się wyłącznie **skąd** brany jest
-katalog `data/`.
+Rename `zgadnij_przymiotnik` → `podaj_przymiotnik` (symetria z `podaj`; już nie
+zgaduje). Docstring: leksykalne, nie regułowe zgadywanie. `podaj` (rzeczowniki) i
+`podaj_przymiotnik` (przymiotniki) pozostają rozdzielone.
+
+### Build (`build.py`)
+
+- Rzeczowniki: bez zmian (`odmien.marisa` + `podaj.marisa`) → `--out
+  data-package-nouns/src/polish_inflection_data_nouns/data`.
+- Przymiotniki: NOWA ścieżka — wyodrębnij bazy deklinacyjne (`adj`, `sg`, `nom`,
+  rodzaj `m1|m2|m3`, dowolny stopień), zbuduj `marisa_trie.Trie` (lowercase),
+  zapisz `przymiotniki.marisa` → `data-package-adjectives/.../data`.
+- Do `BUILD_INFO.json` obu artefaktów trafia `wersja_sgjp` i `schema`.
+- CLI: `build` buduje oba; opcje `--out-nouns` / `--out-adjectives`.
+
+## Przepływ danych (runtime)
+
+```
+odmien("wydział", …)  → _dane.katalog_nouns() → mmap odmien.marisa
+podaj("jednostki")    → _dane.katalog_nouns() → mmap podaj.marisa
+podaj_przymiotnik("wołowa")
+   → _dane.katalog_adjectives() → mmap przymiotniki.marisa (zbiór baz)
+   → reguły generują kandydatów, filtr `in bazy`, weryfikacja generacją
+```
 
 ## Obsługa błędów
 
 | Sytuacja | Zachowanie |
 |---|---|
-| Brak `polish_inflection_data` | `RuntimeError` z instrukcją `pip install polish-inflection-data` |
-| Niezgodny `SCHEMA` (stare dane, nowy kod) | `RuntimeError` z oczekiwanym vs faktycznym schematem |
-| `BUILD_INFO["schema"]` ≠ `SCHEMA` w pakiecie danych | Wychwycone testem pakietu danych (nie runtime) |
-| Import `polish_inflection` bez sięgania po dane | Działa (strażnik leniwy) |
+| Brak pakietu danych (nouns/adjectives) | `RuntimeError` z instrukcją `pip install <dist>` |
+| Niezgodny `SCHEMA` | `RuntimeError` (oczekiwany vs faktyczny, którego pakietu) |
+| `BUILD_INFO["schema"]` ≠ `SCHEMA` pakietu | Test pakietu danych (nie runtime) |
+| `import polish_inflection` bez użycia danych | Działa (locatory leniwe) |
 
 ## Testy
 
-- Testy jednostkowe/integracyjne kodu: bez zmian logiki; wymagają zainstalowanego
-  `polish-inflection-data` (editable w dev). `conftest`/`_ustaw_katalog_danych`
-  działają jak dziś.
-- Testy charakteryzacyjne SGJP (`test_przymiotnik`, `test_zgadnij_przymiotnik`)
-  czytają surowy `.tab.gz` — ścieżka zmienia się na `data-package/sgjp/`. Zachowują
-  obecny `skipif` (brak realnego gzipa w checkoutcie bez LFS → pomijane).
-- **Nowe testy:**
-  - kod: strażnik schematu — zgodność przechodzi; podstawiony `SCHEMA≠oczekiwany`
-    rzuca `RuntimeError` (przez monkeypatch modułu danych).
-  - pakiet danych: `SCHEMA == BUILD_INFO["schema"]`; `WERSJA_SGJP` niepuste;
-    oba `.marisa` istnieją i otwierają się przez `marisa_trie.mmap`.
+- Logika kodu bez zmian (poza filtrem baz); testy integracyjne wymagają obu
+  pakietów danych zainstalowanych (editable w dev).
+- **`podaj_przymiotnik` — nowe testy leksykalne:** `"Michała"`/`"dupa"` → `[]`
+  (bazy `michały`/`dupy` spoza zbioru); `"wołowa"`→`wołowy`, `"Wyższa"`→`wyższy`
+  (bazy w zbiorze). Rename pokryty (import `podaj_przymiotnik`).
+- **Recall** (charakteryzacja) po ugruntowaniu: ≥ dotychczasowego, false-positives
+  spadają. Sample jak dziś.
+- **Testy pakietów danych:** `SCHEMA == BUILD_INFO["schema"]`; `WERSJA_SGJP`
+  niepuste; artefakty istnieją i otwierają się przez marisa; zbiór baz zawiera
+  próbkę (`lubelski`, `wyższy`) i nie zawiera (`michały`).
+- Fraza: `KORPUS`/`KORPUS_MNOGA` bez regresji (wszystkie przymiotniki instytucji
+  są w zbiorze baz — zweryfikowane).
 
 ## Migracja (kolejność bezpieczna)
 
-1. Utwórz `data-package/`, przenieś `data/sgjp/` → `data-package/sgjp/`, zbuduj
-   `.marisa` do `data-package/src/polish_inflection_data/data`, ustaw
-   `version=2026.6.28`, `SCHEMA=1`.
-2. **Opublikuj `polish-inflection-data 2026.6.28`** na PyPI (musi być pierwsze —
-   inaczej dolny pin kodu się nie zresolvuje).
-3. Usuń `.marisa` z pakietu kodu (`src/polish_inflection/data/`), przełącz locator +
-   strażnik schematu, dodaj zależność `polish-inflection-data>=2026.6.28`,
-   zaktualizuj hatchling (już nie pakuje `.marisa`).
-4. Zaktualizuj testy (ścieżka surowego SGJP), CI (dwa job-y), docs/README/CHANGELOG.
-5. **Wydaj `polish-inflection 0.7.0`** — API bez zmian (minor), wheel z ~28 MB do
-   ~kilkudziesięciu KB.
+1. Utwórz oba `data-package-*/`; przenieś `data/sgjp/` → `data-package-nouns/sgjp/`.
+2. Rozszerz `build.py` o zbiór baz; zbuduj artefakty do obu pakietów; ustaw
+   `version=2026.6.28`, `SCHEMA=1` w obu.
+3. **Opublikuj `polish-inflection-data-nouns 2026.6.28` i
+   `polish-inflection-data-adjectives 2026.6.28`** (przed kodem — inaczej pin się
+   nie zresolvuje).
+4. Usuń `.marisa` z pakietu kodu; dodaj `_dane.py` + strażniki; przełącz `core` i
+   `przymiotnik`; rename `zgadnij_przymiotnik`→`podaj_przymiotnik`; dodaj zależności;
+   hatchling przestaje pakować `.marisa`.
+5. Zaktualizuj testy (ścieżka SGJP, filtr baz), CI (job kodu + oba data-buildy),
+   README/`docs/api.md`/CHANGELOG.
+6. **Wydaj `polish-inflection 0.7.0`** — wheel bez `.marisa`; breaking: rename
+   `zgadnij_przymiotnik`→`podaj_przymiotnik` + wymóg pakietów danych (alpha, OK).
 
 ## Poza zakresem (YAGNI)
 
-- Wariant opcjonalnej zależności (`extra [data]`) — można dodać później, gdyby ktoś
-  chciał własny build danych.
-- Entry-point/plugin discovery wielu wersji danych naraz.
-- Pełny układ `packages/` — odrzucony jako nadmiarowy.
+- Pełny reverse index form przymiotników (~10–20 MB) — odrzucony: zbiór baz 0,25 MB
+  rozwiązuje realny problem (false-positives) ~50–100× taniej.
+- Scalanie `podaj` + `podaj_przymiotnik` w jedno — nie reotwierane.
+- Wariant opcjonalnej zależności (`extra [data]`), układ `packages/` — odrzucone.
 
 ## Kryteria sukcesu
 
-- `pip install polish-inflection` ciągnie kod + dane; publiczne API i wyniki
-  identyczne jak w 0.6.0 (testy zielone).
-- Wheel `polish-inflection` bez plików `.marisa` (weryfikacja zawartości).
-- Nowa edycja SGJP → wydanie **tylko** `polish-inflection-data` (kod nietknięty).
-- Niezgodny schemat danych → czytelny błąd, nie ciche śmieci.
+- `pip install polish-inflection` ciągnie kod + oba pakiety danych; API i wyniki
+  jak w 0.6.0 poza celowym rename i lepszym rozpoznawaniem przymiotników.
+- Wheel `polish-inflection` bez `.marisa`.
+- `podaj_przymiotnik("Michała") == []` (koniec `michały`); `podaj_przymiotnik("wołowa")`
+  zawiera `wołowy`; „Wyższa Szkoła Pedagogiczna" nadal odmieniana.
+- Nowa edycja SGJP → wydanie tylko pakietów danych, kod nietknięty.
