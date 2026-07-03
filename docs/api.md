@@ -8,7 +8,7 @@ wprost: `from polish_inflection import odmien, kogo_czego, ...`.
 ## Odmiana — `odmien`
 
 ```python
-odmien(wyraz, przypadek, liczba=POJEDYNCZA, *, default=RAISES) -> str | None
+odmien(wyraz, przypadek, liczba=POJEDYNCZA, *, rodzaj=None, default=RAISES) -> str | None
 ```
 
 Zwraca główną formę `wyraz` w danym przypadku i liczbie. `wyraz` to lemat
@@ -28,6 +28,26 @@ lematu) steruje `default`:
 odmien("wydział", DOPEŁNIACZ)          # "wydziału"
 odmien("wydział", DOPEŁNIACZ, MNOGA)   # "wydziałów"
 odmien("qwerty", DOPEŁNIACZ, default=None)  # None
+```
+
+### Homografy rodzajowe i `rodzaj=`
+
+Niektóre słowa to homografy rodzajów — jedno pisownia, dwa różne wyrazy, np.
+`profesor`: **męski** (odmienny: `profesora`) i **żeński** nieodmienny (`profesor`,
+jak „pani profesor"). Slot zawiera wtedy obie formy.
+
+- **Domyślnie** (`rodzaj=None`) `odmien` nie wykrywa rodzaju — przy kilku formach
+  w slocie wybiera **odmienioną** (różną od lematu) zamiast tożsamościowej. Dzięki
+  temu `odmien("profesor", DOPEŁNIACZ)` → `"profesora"` „za darmo".
+- **Opcjonalnie** możesz wymusić rodzaj stałą `MĘSKI` / `ŻEŃSKI` / `NIJAKI`. Gdy
+  słownik nie ma formy tego rodzaju w slocie — traktujemy to jak brak (`default`).
+
+```python
+from polish_inflection import odmien, DOPEŁNIACZ, MNOGA, MĘSKI, ŻEŃSKI
+
+odmien("profesor", DOPEŁNIACZ)                 # "profesora"  (domyślnie: odmieniona)
+odmien("profesor", DOPEŁNIACZ, rodzaj=ŻEŃSKI)  # "profesor"   (żeński nieodmienny)
+odmien("profesor", DOPEŁNIACZ, MNOGA, rodzaj=MĘSKI)  # "profesorów"
 ```
 
 Warianty skrótowe i oboczności:
@@ -51,7 +71,8 @@ wiele przypadków) i homografię (jedna forma = wiele lematów). Uwzględnia for
 deprecjatywne (`depr`). Opcjonalny `liczba` (`POJEDYNCZA`/`MNOGA`) zawęża.
 Nieznana forma → `[]`.
 
-`Analiza` to `NamedTuple`: `(lemat, przypadek, liczba, rodzaj)`.
+`Analiza` to `NamedTuple`: `(lemat, przypadek, liczba, rodzaj)`. `rodzaj` jest
+publiczny — `MĘSKI` (`"m"`) / `ŻEŃSKI` (`"f"`) / `NIJAKI` (`"n"`).
 
 ```python
 podaj("jednostki")
@@ -155,10 +176,11 @@ Reguła (dla rzeczowników **nie-męskoosobowych**):
 | końcówka 2–4 (nie 12–14) | l.mn., zgoda (`wydziały`) | l.mn. w tym przypadku (`wydziałami`) |
 | reszta (0, 5–21, 12–14, …) | dopełniacz l.mn., rząd (`wydziałów`) | l.mn. w tym przypadku (`wydziałami`) |
 
-Rodzaj **męskoosobowy (m1)** jest wykrywany automatycznie (z `podaj`) i obsłużony:
-tam mianownik/biernik rządzą dopełniaczem l.mn. już od 2 (`2 → "studentów"` =
-„dwóch studentów", `5 → "studentów"` = „pięciu studentów"). Homograf z analizą m1
-(np. `profesor`) traktowany jest jak m1. `default` jak wyżej.
+Rzeczowniki **męskoosobowe** (np. `student`, `profesor`) mają odmienny rząd —
+mianownik/biernik rządzą dopełniaczem l.mn. już od 2 (`2 → "studentów"` = „dwóch
+studentów"). To rozróżnienie (podtyp rodzaju męskiego) jest **wykrywane
+wewnętrznie** z danych SGJP i niewidoczne w API — nie musisz go podawać ani znać;
+publicznie rodzaj to zawsze `MĘSKI`/`ŻEŃSKI`/`NIJAKI`. `default` jak wyżej.
 
 ---
 
@@ -168,9 +190,15 @@ tam mianownik/biernik rządzą dopełniaczem l.mn. już od 2 (`2 → "studentów
 |---|---|
 | `MIANOWNIK, DOPEŁNIACZ, CELOWNIK, BIERNIK, NARZĘDNIK, MIEJSCOWNIK, WOŁACZ` | tagi przypadków (`"nom".."voc"`) |
 | `POJEDYNCZA, MNOGA` | liczba (`"sg"`, `"pl"`) |
-| `PRZYPADKI, LICZBY` | krotki wszystkich powyższych |
+| `MĘSKI, ŻEŃSKI, NIJAKI` | rodzaj (`"m"`, `"f"`, `"n"`) — do `odmien(rodzaj=…)` i `Analiza.rodzaj` |
+| `PRZYPADKI, LICZBY, RODZAJE` | krotki wszystkich powyższych |
 | `TEN_SAM_WYRAZ` | sentinel `default=` → passthrough wejścia |
 | `RAISES` | sentinel `default=` → rzuć `BrakOdmiany` |
+
+Uwaga: rodzaj męski w SGJP dzieli się wewnętrznie na podtypy (męskoosobowy,
+męskozwierzęcy, męskorzeczowy) — potrzebne np. do poprawnego rządu liczebnika
+(`dwóch studentów` vs `dwa stoły`). To rozróżnienie jest ukryte; publicznie widać
+tylko trzy rodzaje.
 
 ## Wyjątki
 

@@ -94,6 +94,47 @@ def test_warianty_posortowane():
     assert w == sorted(w)
 
 
+# ── główna forma przy homografie rodzajów ───────────────────────────────────
+
+
+def test_odmien_homograf_preferuje_odmieniona():
+    # 'profesor' = m1 (odmienny: profesora/profesorów) + f (nieodmienny: profesor);
+    # główną formą ma być odmieniona m1, nie tożsamościowe 'profesor'
+    assert odmien("profesor", DOPEŁNIACZ) == "profesora"
+    assert odmien("profesor", DOPEŁNIACZ, MNOGA) == "profesorów"
+
+
+def test_odmien_mianownik_nadal_lemat():
+    # gdy jedyną formą jest lemat (mianownik l.poj.), zwracamy ją
+    assert odmien("profesor", MIANOWNIK) == "profesor"
+    assert odmien("wydział", MIANOWNIK) == "wydział"
+
+
+# ── wymuszony rodzaj (odmien rodzaj=) ───────────────────────────────────────
+
+
+def test_odmien_wymuszony_rodzaj_meski_i_zenski():
+    from polish_inflection import MĘSKI, ŻEŃSKI
+
+    assert odmien("profesor", DOPEŁNIACZ, rodzaj=MĘSKI) == "profesora"
+    assert odmien("profesor", DOPEŁNIACZ, MNOGA, rodzaj=MĘSKI) == "profesorów"
+    assert odmien("profesor", DOPEŁNIACZ, rodzaj=ŻEŃSKI) == "profesor"
+
+
+def test_odmien_wymuszony_rodzaj_brak_to_default():
+    from polish_inflection import ŻEŃSKI
+
+    # 'wydział' nie ma formy żeńskiej -> jak brak formy
+    assert odmien("wydział", DOPEŁNIACZ, rodzaj=ŻEŃSKI, default=None) is None
+
+
+def test_podaj_rodzaj_jest_publiczny():
+    # rodzaj w Analiza to m/f/n, NIE m1/m2/m3
+    rodzaje = {a.rodzaj for a in podaj("student")}
+    assert rodzaje == {"m"}
+    assert "m1" not in rodzaje
+
+
 # ── podaj: kierunek zwrotny + synkretyzm ────────────────────────────────────
 
 

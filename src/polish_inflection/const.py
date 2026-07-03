@@ -18,6 +18,16 @@ MNOGA = "pl"
 PRZYPADKI = (MIANOWNIK, DOPEŁNIACZ, CELOWNIK, BIERNIK, NARZĘDNIK, MIEJSCOWNIK, WOŁACZ)
 LICZBY = (POJEDYNCZA, MNOGA)
 
+# Rodzaj gramatyczny: męski / żeński / nijaki. Używane m.in. do wymuszenia
+# rodzaju w ``odmien(..., rodzaj=...)`` dla homografów rodzajowych (np. ``profesor``
+# = męski odmienny + żeński nieodmienny). Wewnętrznie SGJP dzieli rodzaj męski na
+# podtypy (m1/m2/m3) — to jest ukryte; publicznie widać tylko trzy rodzaje.
+MĘSKI = "m"  # np. profesor, student, wydział
+ŻEŃSKI = "f"  # np. jednostka, klinika
+NIJAKI = "n"  # np. koło, okno
+
+RODZAJE = (MĘSKI, ŻEŃSKI, NIJAKI)
+
 # Zbiory do szybkiej walidacji w buildzie/runtime.
 PRZYPADKI_SET = frozenset(PRZYPADKI)
 LICZBY_SET = frozenset(LICZBY)

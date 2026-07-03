@@ -9,6 +9,24 @@ PyPI: <https://pypi.org/project/polish-inflection/>
 
 ## [Nieopublikowane]
 
+## [0.4.0] — 2026-07-03
+
+### Dodano
+- **`odmien(..., rodzaj=…)`** — opcjonalne wymuszenie rodzaju dla homografów
+  rodzajowych (`profesor`: `rodzaj=MĘSKI` → `profesora`, `rodzaj=ŻEŃSKI` →
+  `profesor`). Stałe rodzaju: **`MĘSKI` / `ŻEŃSKI` / `NIJAKI`** (`RODZAJE`).
+
+### Zmieniono
+- **Domyślny wybór głównej formy w `odmien`**: przy kilku formach w slocie
+  (homograf/oboczność) preferujemy formę **odmienioną** (różną od lematu) nad
+  tożsamościową — `odmien("profesor", DOPEŁNIACZ)` → `"profesora"` bez podawania
+  rodzaju.
+- **`Analiza.rodzaj` (z `podaj`) zwężony do trzech rodzajów** — `MĘSKI`/`ŻEŃSKI`/
+  `NIJAKI` (`"m"`/`"f"`/`"n"`). Podtypy rodzaju męskiego SGJP (męskoosobowy itd.)
+  są ukryte; potrzebny wewnętrznie podtyp męskoosobowy (rząd liczebnika,
+  `dwóch studentów` vs `dwa stoły`) jest wykrywany automatycznie i niewidoczny.
+  (Zmiana łamiąca dla kodu polegającego na `"m1"`/`"m2"`/`"m3"` w `Analiza.rodzaj`.)
+
 ## [0.3.1] — 2026-07-03
 
 ### Poprawiono
@@ -58,7 +76,8 @@ PyPI: <https://pypi.org/project/polish-inflection/>
 - Pipeline BUILD (`polish-inflection-build build` / `refresh-sgjp`), CI
   (Python 3.9–3.13), pre-commit, README PL→EN, licencje (kod BSD-2 + dane SGJP).
 
-[Nieopublikowane]: https://github.com/iplweb/polish-inflection/compare/v0.3.1...HEAD
+[Nieopublikowane]: https://github.com/iplweb/polish-inflection/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/iplweb/polish-inflection/compare/v0.3.1...v0.4.0
 [0.3.1]: https://github.com/iplweb/polish-inflection/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/iplweb/polish-inflection/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/iplweb/polish-inflection/compare/v0.1.0...v0.2.0
