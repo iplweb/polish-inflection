@@ -1,6 +1,6 @@
 [project]
 name = "polish-inflection"
-version = "0.4.0"
+version = "0.4.1"
 description = "Lekka odmiana polskich rzeczowników przez przypadki (dane SGJP, indeks marisa-trie, mmap)."
 readme = "README.md"
 requires-python = ">=3.9"
@@ -52,11 +52,12 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/polish_inflection"]
-# Zbudowane indeksy .marisa (dane pakietowe) jadą w wheelu wraz z pakietem.
-artifacts = ["*.marisa"]
+# Zbudowane indeksy .marisa (dane pakietowe) oraz marker PEP 561 (py.typed,
+# żeby mypy/pyright u użytkowników widziały adnotacje) jadą w wheelu.
+artifacts = ["*.marisa", "py.typed"]
 
 [tool.hatch.build.targets.sdist]
-# sdist wiezie kod + zbudowane .dawg, ale NIE surowy vendorowany SGJP .tab.gz (42 MB).
+# sdist wiezie kod + zbudowane .marisa, ale NIE surowy vendorowany SGJP .tab.gz (42 MB).
 include = [
     "src/",
     "tests/",

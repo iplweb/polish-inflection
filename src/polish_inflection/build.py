@@ -1,10 +1,10 @@
-"""Pipeline BUILD (offline): SGJP ``.tab`` -> dwa indeksy ``BytesDAWG``.
+"""Pipeline BUILD (offline): SGJP ``.tab`` -> dwa indeksy marisa-trie (``BytesTrie``).
 
 Uruchamiany u autora / w CI, NIGDY przy ``pip install``. Buduje kompaktowy,
 w pełni wyliczony indeks — runtime niczego nie generuje, tylko wyszukuje.
 
-Zależności buildu (extra ``build``): ``dawg2`` (import ``dawg``) do zapisu,
-``requests`` do ``refresh_sgjp``. Runtime tego nie potrzebuje.
+Zapis indeksów robi ``marisa-trie`` (zależność runtime). Extra ``build`` dokłada
+tylko ``requests`` do ``refresh_sgjp``; sam build indeksów go nie potrzebuje.
 
 Schemat wyjścia — patrz CONTRACT §D / :mod:`polish_inflection.core`.
 """
@@ -87,7 +87,7 @@ def parsuj_linie(linie: Iterable[str]) -> Iterator[Rekord]:
 # ── Budowa indeksów (marisa-trie BytesTrie) ────────────────────────────────
 
 
-def _pary_dawg(rekordy: Iterable[Rekord]):
+def _pary_indeksow(rekordy: Iterable[Rekord]):
     """Zwróć (pary_odmien, pary_podaj) jako listy (klucz:str, wartosc:bytes).
 
     odmien: tylko subst (formy główne). podaj: subst + depr.
@@ -104,11 +104,11 @@ def _pary_dawg(rekordy: Iterable[Rekord]):
     return sorted(odmien_set), sorted(podaj_set)
 
 
-def zbuduj_dawgi(rekordy: Iterable[Rekord]):
+def zbuduj_indeksy(rekordy: Iterable[Rekord]):
     """Zbuduj i zwróć oba ``marisa_trie.BytesTrie`` (odmien, podaj)."""
     import marisa_trie
 
-    pary_odmien, pary_podaj = _pary_dawg(rekordy)
+    pary_odmien, pary_podaj = _pary_indeksow(rekordy)
     return marisa_trie.BytesTrie(pary_odmien), marisa_trie.BytesTrie(pary_podaj)
 
 
@@ -128,14 +128,32 @@ def _otworz_tab(sciezka: Path) -> Iterator[str]:
 _DICT_ID_RE = re.compile(r"#!DICT-ID\s+(\S+)")
 
 
+def _linie_naglowka(linie: Iterable[str]) -> Iterator[str]:
+    """Wydziel linie nagłówka SGJP (do pierwszej linii danych).
+
+    UWAGA: treść bloku ``#<COPYRIGHT> ... #</COPYRIGHT>`` to zwykłe linie BEZ
+    prefiksu ``#`` — więc nie wolno przerywać na pierwszej linii bez ``#``;
+    czytamy dopóki jesteśmy wewnątrz bloku licencji. Wspólne dla ``wersja_sgjp``
+    i ``refresh_sgjp`` (jeden kontrakt na kształt nagłówka).
+    """
+    wewnatrz_licencji = False
+    for linia in linie:
+        s = linia.rstrip("\n")
+        if not wewnatrz_licencji and not s.startswith("#"):
+            break
+        yield linia
+        if s.startswith("#<COPYRIGHT>"):
+            wewnatrz_licencji = True
+        elif s.startswith("#</COPYRIGHT>"):
+            wewnatrz_licencji = False
+
+
 def wersja_sgjp(sciezka: Path) -> str | None:
     """Odczytaj wersję z nagłówka ``#!DICT-ID pl.sgjp.sgjp-YYYY.MM.DD``."""
-    for linia in _otworz_tab(sciezka):
+    for linia in _linie_naglowka(_otworz_tab(sciezka)):
         m = _DICT_ID_RE.search(linia)
         if m:
             return m.group(1)
-        if not linia.startswith("#"):
-            break
     return None
 
 
@@ -153,7 +171,7 @@ def zbuduj_z_tab(sciezka_tab: Path, out_dir: Path, *, data_build: str | None = N
     out_dir.mkdir(parents=True, exist_ok=True)
 
     rekordy = list(parsuj_linie(_otworz_tab(sciezka_tab)))
-    odmien_trie, podaj_trie = zbuduj_dawgi(rekordy)
+    odmien_trie, podaj_trie = zbuduj_indeksy(rekordy)
 
     odmien_path = out_dir / "odmien.marisa"
     podaj_path = out_dir / "podaj.marisa"
@@ -232,22 +250,9 @@ def refresh_sgjp(dane_dir: Path, *, wersja: str | None = None, data_pobrania: st
     plik = dane_dir / f"sgjp-{wersja}.tab.gz"
     plik.write_bytes(dane)
 
-    # Nagłówek do wersji i licencji. UWAGA: treść bloku #<COPYRIGHT>..#</COPYRIGHT>
-    # to zwykłe linie BEZ prefiksu '#', więc nie można przerywać na pierwszej
-    # linii bez '#'; czytamy dalej dopóki jesteśmy wewnątrz bloku licencji.
+    # Nagłówek do wersji i licencji — wspólny iterator respektuje blok licencji.
     with gzip.open(io.BytesIO(dane), "rt", encoding="utf-8") as f:
-        naglowek_linie = []
-        wewnatrz_licencji = False
-        for linia in f:
-            s = linia.rstrip("\n")
-            if not wewnatrz_licencji and not s.startswith("#"):
-                break
-            naglowek_linie.append(linia)
-            if s.startswith("#<COPYRIGHT>"):
-                wewnatrz_licencji = True
-            elif s.startswith("#</COPYRIGHT>"):
-                wewnatrz_licencji = False
-    naglowek = "".join(naglowek_linie)
+        naglowek = "".join(_linie_naglowka(f))
     m = _DICT_ID_RE.search(naglowek)
     dict_id = m.group(1) if m else None
 

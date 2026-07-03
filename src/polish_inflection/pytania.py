@@ -155,6 +155,8 @@ def odmiana_liczebnikowa(wyraz, count, przypadek=MIANOWNIK, *, default=TEN_SAM_W
 
     Reguła:
 
+    - ``count`` ułamkowy (np. ``2.5``) → dopełniacz l.poj. (``2,5 wydziału``),
+      niezależnie od przypadka frazy — ułamek dziesiętny rządzi tym przypadkiem;
     - ``count == 1`` → l.poj. w przypadku frazy;
     - mianownik/biernik: rzeczowniki nie-męskoosobowe z końcówką 2–4 (nie 12–14)
       → l.mn., zgoda (``dwa wydziały``); w pozostałych (męskoosobowe dla ≥2 oraz
@@ -165,6 +167,8 @@ def odmiana_liczebnikowa(wyraz, count, przypadek=MIANOWNIK, *, default=TEN_SAM_W
     'wydziały'
     >>> odmiana_liczebnikowa("wydział", 5)
     'wydziałów'
+    >>> odmiana_liczebnikowa("wydział", 2.5)   # ułamek -> dop. l.poj.
+    'wydziału'
     >>> odmiana_liczebnikowa("student", 2)   # męskoosobowy wykryty automatycznie
     'studentów'
     >>> odmiana_liczebnikowa("wydział", 5, NARZĘDNIK)
@@ -172,8 +176,11 @@ def odmiana_liczebnikowa(wyraz, count, przypadek=MIANOWNIK, *, default=TEN_SAM_W
 
     ``default`` jak w pozostałych funkcjach (domyślnie passthrough).
     """
-    n = abs(int(count))
     meskoosobowy, rodzaj = _rodzaj_do_liczebnika(wyraz)
+    n_calk = int(count)
+    if count != n_calk:  # ułamek dziesiętny (np. 2.5) -> dopełniacz l.poj.
+        return odmien(wyraz, DOPEŁNIACZ, POJEDYNCZA, rodzaj=rodzaj, default=default)
+    n = abs(n_calk)
     if n == 1:
         return odmien(wyraz, przypadek, POJEDYNCZA, rodzaj=rodzaj, default=default)
     d, dd = n % 10, n % 100
