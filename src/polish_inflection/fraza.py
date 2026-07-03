@@ -14,7 +14,15 @@ override w django-polish-inflection.
 
 from __future__ import annotations
 
-from .const import MIANOWNIK, POJEDYNCZA, TEN_SAM_WYRAZ, WOŁACZ
+from .const import (
+    MIANOWNIK,
+    MĘSKI,
+    NIJAKI,
+    POJEDYNCZA,
+    TEN_SAM_WYRAZ,
+    WOŁACZ,
+    ŻEŃSKI,
+)
 from .core import _rozwiaz_brak, odmien, podaj
 from .przymiotnik import odmien_przymiotnik
 
@@ -55,14 +63,14 @@ def _adj_lemat(token: str, rodzaj: str):
     """Wyprowadź lemat przymiotnika (mian. l.poj. m) z formy mianownikowej w
     rodzaju ``rodzaj``. None, jeśli token nie ma kształtu mian. przydawki."""
     t = token.lower()
-    if rodzaj.startswith("m"):
+    if rodzaj.startswith(MĘSKI):  # MĘSKI oraz podtypy m1/m2/m3
         return t if t.endswith(("y", "i")) else None
-    if rodzaj == "f":
+    if rodzaj == ŻEŃSKI:
         if t.endswith("a"):
             stem = t[:-1]
             return stem + ("i" if stem[-1:] in "kg" else "y")
         return None
-    if rodzaj == "n":
+    if rodzaj == NIJAKI:
         if t.endswith("e"):
             stem = t[:-1]
             return stem if stem.endswith("i") else stem + "y"
@@ -102,11 +110,14 @@ def _wybierz_glowe(tokeny):
 def odmien_fraze(fraza: str, przypadek: str, liczba: str = POJEDYNCZA, *, default=TEN_SAM_WYRAZ):
     """Odmień wielowyrazową nazwę własną instytucji do ``przypadek``/``liczba``.
 
-    >>> odmien_fraze("Uniwersytet Lubelski", "gen")
+    ``przypadek`` — stała przypadka (``DOPEŁNIACZ`` itd.).
+
+    >>> from polish_inflection import DOPEŁNIACZ
+    >>> odmien_fraze("Uniwersytet Lubelski", DOPEŁNIACZ)
     'Uniwersytetu Lubelskiego'
-    >>> odmien_fraze("Instytut Technologii Stosowanej", "gen")
+    >>> odmien_fraze("Instytut Technologii Stosowanej", DOPEŁNIACZ)
     'Instytutu Technologii Stosowanej'
-    >>> odmien_fraze("Akademia Medyczna", "gen")
+    >>> odmien_fraze("Akademia Medyczna", DOPEŁNIACZ)
     'Akademii Medycznej'
     """
     tokeny = fraza.split()

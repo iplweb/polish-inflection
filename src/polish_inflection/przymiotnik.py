@@ -3,56 +3,76 @@
 Odmiana przymiotnika w polszczyźnie jest REGULARNA (zamknięty system paradygmatów
 twardo-/miękko-/welarnotematowych), inaczej niż leksykalna odmiana rzeczownika —
 dlatego nie trzymamy przymiotników w indeksie SGJP (to +46 MB), tylko generujemy
-je regułą (kilka KB kodu). Zwalidowane przeciw SGJP: l.poj. 99,98% zgodności.
+je regułą (kilka KB kodu). Zwalidowane przeciw SGJP: l.poj. 99,9% zgodności.
 
 Wejście ``lemat`` to mianownik l.poj. rodzaju męskiego (forma słownikowa, np.
 ``lubelski``, ``medyczny``, ``stosowany``). ``rodzaj`` to rodzaj GŁOWY, którą
-przymiotnik określa (zgoda) — akceptujemy zarówno zgrubny ``m``/``f``/``n`` (jak
-zwraca :func:`polish_inflection.podaj`), jak i dokładny ``m1``/``m2``/``m3``.
+przymiotnik określa (zgoda) — przyjmujemy publiczne stałe ``MĘSKI``/``ŻEŃSKI``/
+``NIJAKI``; zgrubny ``MĘSKI`` traktujemy jako nieżywotny (nazwy instytucji).
 """
 
 from __future__ import annotations
 
-from .const import MNOGA, POJEDYNCZA, TEN_SAM_WYRAZ
+from .const import (
+    BIERNIK,
+    CELOWNIK,
+    DOPEŁNIACZ,
+    MIANOWNIK,
+    MIEJSCOWNIK,
+    MNOGA,
+    MĘSKI,
+    NARZĘDNIK,
+    NIJAKI,
+    POJEDYNCZA,
+    TEN_SAM_WYRAZ,
+    WOŁACZ,
+    ŻEŃSKI,
+)
 from .core import _rozwiaz_brak
 
 __all__ = ["odmien_przymiotnik"]
 
+# Podtypy rodzaju męskiego (m1 męskoosobowy, m2 męskozwierzęcy) są w SGJP, ale
+# NIE mają publicznych stałych (biblioteka wystawia tylko MĘSKI/ŻEŃSKI/NIJAKI).
+# Przyjmujemy je jako opcjonalne wejście dla zaawansowanych wywołań.
+_M1 = "m1"
+_M2 = "m2"
+
 # Abstrakcyjne końcówki l.poj.: (grupa_rodzaju, przypadek) -> końcówka.
-# grupa_rodzaju: "m" (m1/m2/m3 wspólne poza biernikiem), "f", "n".
+# grupa_rodzaju: MĘSKI (m1/m2/m3 wspólne poza biernikiem), ŻEŃSKI, NIJAKI.
 _SG = {
-    ("m", "nom"): "y",
-    ("m", "gen"): "ego",
-    ("m", "dat"): "emu",
-    ("m", "inst"): "ym",
-    ("m", "loc"): "ym",
-    ("m", "voc"): "y",
-    ("f", "nom"): "a",
-    ("f", "gen"): "ej",
-    ("f", "dat"): "ej",
-    ("f", "acc"): "ą",
-    ("f", "inst"): "ą",
-    ("f", "loc"): "ej",
-    ("f", "voc"): "a",
-    ("n", "nom"): "e",
-    ("n", "gen"): "ego",
-    ("n", "dat"): "emu",
-    ("n", "acc"): "e",
-    ("n", "inst"): "ym",
-    ("n", "loc"): "ym",
-    ("n", "voc"): "e",
+    (MĘSKI, MIANOWNIK): "y",
+    (MĘSKI, DOPEŁNIACZ): "ego",
+    (MĘSKI, CELOWNIK): "emu",
+    (MĘSKI, NARZĘDNIK): "ym",
+    (MĘSKI, MIEJSCOWNIK): "ym",
+    (MĘSKI, WOŁACZ): "y",
+    (ŻEŃSKI, MIANOWNIK): "a",
+    (ŻEŃSKI, DOPEŁNIACZ): "ej",
+    (ŻEŃSKI, CELOWNIK): "ej",
+    (ŻEŃSKI, BIERNIK): "ą",
+    (ŻEŃSKI, NARZĘDNIK): "ą",
+    (ŻEŃSKI, MIEJSCOWNIK): "ej",
+    (ŻEŃSKI, WOŁACZ): "a",
+    (NIJAKI, MIANOWNIK): "e",
+    (NIJAKI, DOPEŁNIACZ): "ego",
+    (NIJAKI, CELOWNIK): "emu",
+    (NIJAKI, BIERNIK): "e",
+    (NIJAKI, NARZĘDNIK): "ym",
+    (NIJAKI, MIEJSCOWNIK): "ym",
+    (NIJAKI, WOŁACZ): "e",
 }
 
 # Końcówki l.mn. NIEmęskoosobowe (m2/m3/f/n) — wspólne dla wszystkich rodzajów
 # poza mianownikiem/wołaczem męskoosobowym (patrz _mn_meskoosobowy_mianownik).
 _PL_NIEMESK = {
-    "nom": "e",
-    "gen": "ych",
-    "dat": "ym",
-    "acc": "e",
-    "inst": "ymi",
-    "loc": "ych",
-    "voc": "e",
+    MIANOWNIK: "e",
+    DOPEŁNIACZ: "ych",
+    CELOWNIK: "ym",
+    BIERNIK: "e",
+    NARZĘDNIK: "ymi",
+    MIEJSCOWNIK: "ych",
+    WOŁACZ: "e",
 }
 
 # Tablica alternacji tematu dla mianownika l.mn. MĘSKOOSOBOWEGO (m1):
@@ -108,30 +128,29 @@ def _sklej(klasa: str, temat: str, koncowka: str) -> str:
 
 
 def _grupa(rodzaj: str) -> str:
-    if rodzaj in ("m", "m1", "m2", "m3"):
-        return "m"
-    if rodzaj == "n":
-        return "n"
-    return "f"
+    if rodzaj in (MĘSKI, _M1, _M2, "m3"):
+        return MĘSKI
+    if rodzaj == NIJAKI:
+        return NIJAKI
+    return ŻEŃSKI
 
 
 def _zywotny(rodzaj: str) -> bool:
-    # Zgrubne "m" traktujemy jako NIEżywotne (nazwy instytucji: uniwersytet, wydział).
-    return rodzaj in ("m1", "m2")
+    # Zgrubne MĘSKI traktujemy jako NIEżywotne (nazwy instytucji: uniwersytet, wydział).
+    return rodzaj in (_M1, _M2)
 
 
-def _mn_meskoosobowy_mianownik(klasa: str, temat: str) -> str:
+def _mn_meskoosobowy_mianownik(temat: str) -> str:
     for konc, nowy, sam in _MESK_ALT:
         if temat.endswith(konc):
             return temat[: -len(konc)] + nowy + sam
-    # brak alternacji: SOFT/VELAR -> +i, HARD -> +i (miękczy)
-    return temat + "i"
+    return temat + "i"  # brak alternacji -> miękczenie samą samogłoską
 
 
 def _forma_sg(klasa, temat, rodzaj, przypadek):
     grupa = _grupa(rodzaj)
-    if grupa == "m" and przypadek == "acc":
-        klucz = ("m", "gen") if _zywotny(rodzaj) else ("m", "nom")
+    if grupa == MĘSKI and przypadek == BIERNIK:
+        klucz = (MĘSKI, DOPEŁNIACZ) if _zywotny(rodzaj) else (MĘSKI, MIANOWNIK)
     else:
         klucz = (grupa, przypadek)
     konc = _SG.get(klucz)
@@ -139,11 +158,11 @@ def _forma_sg(klasa, temat, rodzaj, przypadek):
 
 
 def _forma_pl(klasa, temat, rodzaj, przypadek):
-    meskoosobowy = rodzaj == "m1"
-    if meskoosobowy and przypadek in ("nom", "voc"):
-        return _mn_meskoosobowy_mianownik(klasa, temat)
-    if meskoosobowy and przypadek == "acc":
-        konc = _PL_NIEMESK["gen"]  # biernik m1 l.mn. = dopełniacz
+    meskoosobowy = rodzaj == _M1
+    if meskoosobowy and przypadek in (MIANOWNIK, WOŁACZ):
+        return _mn_meskoosobowy_mianownik(temat)
+    if meskoosobowy and przypadek == BIERNIK:
+        konc = _PL_NIEMESK[DOPEŁNIACZ]  # biernik m1 l.mn. = dopełniacz
     else:
         konc = _PL_NIEMESK.get(przypadek)
     return _sklej(klasa, temat, konc) if konc else None
@@ -159,16 +178,18 @@ def odmien_przymiotnik(
 ):
     """Odmień przymiotnik ``lemat`` do (``przypadek``, ``rodzaj``, ``liczba``).
 
-    ``lemat`` — mianownik l.poj. m (forma słownikowa). ``rodzaj`` — rodzaj głowy
-    (``m``/``m1``/``m2``/``m3``/``f``/``n``; zgrubne ``m`` = nieżywotny).
-    Przy niepoprawnym wejściu stosuje ``default`` (jak reszta API).
+    ``lemat`` — mianownik l.poj. m (forma słownikowa). ``przypadek`` — stała
+    przypadka (``DOPEŁNIACZ`` itd.). ``rodzaj`` — rodzaj głowy (``MĘSKI``/
+    ``ŻEŃSKI``/``NIJAKI``; zgrubny ``MĘSKI`` = nieżywotny). Przy niepoprawnym
+    wejściu stosuje ``default`` (jak reszta API).
 
-    >>> odmien_przymiotnik("lubelski", "gen", "m")
+    >>> from polish_inflection import DOPEŁNIACZ, MIEJSCOWNIK, MĘSKI, ŻEŃSKI, NIJAKI
+    >>> odmien_przymiotnik("lubelski", DOPEŁNIACZ, MĘSKI)
     'lubelskiego'
-    >>> odmien_przymiotnik("stosowany", "gen", "f")
+    >>> odmien_przymiotnik("stosowany", DOPEŁNIACZ, ŻEŃSKI)
     'stosowanej'
-    >>> odmien_przymiotnik("medyczny", "nom", "m1", "pl")
-    'medyczni'
+    >>> odmien_przymiotnik("medyczny", MIEJSCOWNIK, NIJAKI)
+    'medycznym'
     """
     klasa, temat = _klasa_temat(lemat)
     if klasa is None:

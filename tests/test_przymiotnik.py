@@ -7,7 +7,23 @@ from pathlib import Path
 
 import pytest
 
-from polish_inflection import odmien_przymiotnik
+from polish_inflection import (
+    BIERNIK,
+    DOPEŁNIACZ,
+    MIANOWNIK,
+    MIEJSCOWNIK,
+    MNOGA,
+    MĘSKI,
+    NARZĘDNIK,
+    NIJAKI,
+    POJEDYNCZA,
+    ŻEŃSKI,
+    odmien_przymiotnik,
+)
+
+# Podtyp męskoosobowy m1 nie ma publicznej stałej (biblioteka wystawia tylko
+# MĘSKI/ŻEŃSKI/NIJAKI) — w teście l.mn. męskoosobowej używamy wprost "m1".
+M1 = "m1"
 
 # ── Konkretne przypadki (nazwy instytucji + trzy klasy tematu) ──────────────
 
@@ -16,28 +32,28 @@ from polish_inflection import odmien_przymiotnik
     "lemat,przypadek,rodzaj,liczba,oczekiwana",
     [
         # welarne -ski/-cki (Lubelski, Lekarski)
-        ("lubelski", "gen", "m", "sg", "lubelskiego"),
-        ("lubelski", "gen", "f", "sg", "lubelskiej"),
-        ("lekarski", "gen", "m", "sg", "lekarskiego"),
-        ("lekarski", "loc", "m", "sg", "lekarskim"),
+        ("lubelski", DOPEŁNIACZ, MĘSKI, POJEDYNCZA, "lubelskiego"),
+        ("lubelski", DOPEŁNIACZ, ŻEŃSKI, POJEDYNCZA, "lubelskiej"),
+        ("lekarski", DOPEŁNIACZ, MĘSKI, POJEDYNCZA, "lekarskiego"),
+        ("lekarski", MIEJSCOWNIK, MĘSKI, POJEDYNCZA, "lekarskim"),
         # twarde -ny/-owy/-any (medyczny, główny, stosowany)
-        ("medyczny", "gen", "m", "sg", "medycznego"),
-        ("medyczny", "nom", "f", "sg", "medyczna"),
-        ("stosowany", "gen", "f", "sg", "stosowanej"),
-        ("główny", "inst", "n", "sg", "głównym"),
+        ("medyczny", DOPEŁNIACZ, MĘSKI, POJEDYNCZA, "medycznego"),
+        ("medyczny", MIANOWNIK, ŻEŃSKI, POJEDYNCZA, "medyczna"),
+        ("stosowany", DOPEŁNIACZ, ŻEŃSKI, POJEDYNCZA, "stosowanej"),
+        ("główny", NARZĘDNIK, NIJAKI, POJEDYNCZA, "głównym"),
         # rodzaj żeński pełny (uczelnia/szkoła/akademia jako głowa)
-        ("pedagogiczny", "gen", "f", "sg", "pedagogicznej"),
-        ("pedagogiczny", "acc", "f", "sg", "pedagogiczną"),
+        ("pedagogiczny", DOPEŁNIACZ, ŻEŃSKI, POJEDYNCZA, "pedagogicznej"),
+        ("pedagogiczny", BIERNIK, ŻEŃSKI, POJEDYNCZA, "pedagogiczną"),
         # nijaki (kolegium jako głowa)
-        ("techniczny", "nom", "n", "sg", "techniczne"),
-        # biernik męski nieżywotny (wydział = m3) = mianownik
-        ("lekarski", "acc", "m", "sg", "lekarski"),
+        ("techniczny", MIANOWNIK, NIJAKI, POJEDYNCZA, "techniczne"),
+        # biernik męski nieżywotny (wydział) = mianownik
+        ("lekarski", BIERNIK, MĘSKI, POJEDYNCZA, "lekarski"),
         # l.mn. niemęskoosobowa
-        ("medyczny", "gen", "f", "pl", "medycznych"),
-        ("lubelski", "loc", "n", "pl", "lubelskich"),
+        ("medyczny", DOPEŁNIACZ, ŻEŃSKI, MNOGA, "medycznych"),
+        ("lubelski", MIEJSCOWNIK, NIJAKI, MNOGA, "lubelskich"),
         # l.mn. męskoosobowa (m1) — alternacje tematu
-        ("medyczny", "nom", "m1", "pl", "medyczni"),
-        ("lekarski", "nom", "m1", "pl", "lekarscy"),
+        ("medyczny", MIANOWNIK, M1, MNOGA, "medyczni"),
+        ("lekarski", MIANOWNIK, M1, MNOGA, "lekarscy"),
     ],
 )
 def test_odmien_przymiotnik_przypadki(lemat, przypadek, rodzaj, liczba, oczekiwana):
@@ -46,8 +62,8 @@ def test_odmien_przymiotnik_przypadki(lemat, przypadek, rodzaj, liczba, oczekiwa
 
 def test_niepoprawny_lemat_zwraca_default():
     # lemat nie kończący się na -y/-i nie jest przymiotnikiem -> passthrough
-    assert odmien_przymiotnik("xyz", "gen", "m") == "xyz"
-    assert odmien_przymiotnik("xyz", "gen", "m", default=None) is None
+    assert odmien_przymiotnik("xyz", DOPEŁNIACZ, MĘSKI) == "xyz"
+    assert odmien_przymiotnik("xyz", DOPEŁNIACZ, MĘSKI, default=None) is None
 
 
 # ── Charakteryzacja progowa przeciw całemu SGJP ─────────────────────────────

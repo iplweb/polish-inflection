@@ -150,15 +150,15 @@ więc nie zajmują miejsca w słowniku (zero przyrostu danych). Zwalidowane prze
 pełnemu SGJP: l.poj. 99,9%.
 
 ```python
-from polish_inflection import odmien_przymiotnik
+from polish_inflection import odmien_przymiotnik, DOPEŁNIACZ, MIEJSCOWNIK, MĘSKI, ŻEŃSKI, NIJAKI
 
-odmien_przymiotnik("lubelski", "gen", "m")        # "lubelskiego"
-odmien_przymiotnik("medyczny", "gen", "f")        # "medycznej"
-odmien_przymiotnik("stosowany", "loc", "n")       # "stosowanym"
+odmien_przymiotnik("lubelski", DOPEŁNIACZ, MĘSKI)     # "lubelskiego"
+odmien_przymiotnik("medyczny", DOPEŁNIACZ, ŻEŃSKI)    # "medycznej"
+odmien_przymiotnik("stosowany", MIEJSCOWNIK, NIJAKI)  # "stosowanym"
 ```
 
 `lemat` to mianownik l.poj. rodzaju męskiego (forma słownikowa); `rodzaj` to
-rodzaj słowa określanego (`m`/`f`/`n`, jak zwraca `podaj`).
+rodzaj słowa określanego (`MĘSKI`/`ŻEŃSKI`/`NIJAKI`, jak zwraca `podaj`).
 
 ### Odmiana nazw wielowyrazowych (`odmien_fraze`)
 
@@ -166,12 +166,12 @@ Odmiana wielowyrazowych **nazw własnych instytucji** — odmienia rzeczownik-g�
 i uzgadniające się przymiotniki, a dopełniaczowe dopełnienie zamraża:
 
 ```python
-from polish_inflection import odmien_fraze
+from polish_inflection import odmien_fraze, DOPEŁNIACZ, MIEJSCOWNIK
 
-odmien_fraze("Uniwersytet Lubelski", "gen")            # "Uniwersytetu Lubelskiego"
-odmien_fraze("Akademia Medyczna", "loc")               # "Akademii Medycznej"
-odmien_fraze("Instytut Technologii Stosowanej", "gen") # "Instytutu Technologii Stosowanej"
-odmien_fraze("Uniwersytet im. Marii Curie", "gen")     # "Uniwersytetu im. Marii Curie"
+odmien_fraze("Uniwersytet Lubelski", DOPEŁNIACZ)            # "Uniwersytetu Lubelskiego"
+odmien_fraze("Akademia Medyczna", MIEJSCOWNIK)              # "Akademii Medycznej"
+odmien_fraze("Instytut Technologii Stosowanej", DOPEŁNIACZ) # "Instytutu Technologii Stosowanej"
+odmien_fraze("Uniwersytet im. Marii Curie", DOPEŁNIACZ)     # "Uniwersytetu im. Marii Curie"
 ```
 
 Parser jest heurystyczny (pod nazwy własne): wykrywa głowę, uzgadnia przymiotniki,
