@@ -138,3 +138,13 @@ drzwi	drzwi	subst:pl:nom.acc.voc:n:pt	nazwa_pospolita
 drzwiach	drzwi	subst:pl:loc:n:pt	nazwa_pospolita
 drzwiami	drzwi	subst:pl:inst:n:pt	nazwa_pospolita
 drzwiom	drzwi	subst:pl:dat:n:pt	nazwa_pospolita
+student	student	subst:sg:nom:m1	nazwa_pospolita
+studenta	student	subst:sg:gen.acc:m1	nazwa_pospolita
+studentowi	student	subst:sg:dat:m1	nazwa_pospolita
+studentem	student	subst:sg:inst:m1	nazwa_pospolita
+studencie	student	subst:sg:loc.voc:m1	nazwa_pospolita
+studenci	student	subst:pl:nom.voc:m1	nazwa_pospolita
+studentów	student	subst:pl:gen.acc:m1	nazwa_pospolita
+studentom	student	subst:pl:dat:m1	nazwa_pospolita
+studentami	student	subst:pl:inst:m1	nazwa_pospolita
+studentach	student	subst:pl:loc:m1	nazwa_pospolita

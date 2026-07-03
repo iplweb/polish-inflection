@@ -3,6 +3,7 @@
 import pytest
 
 from polish_inflection import (
+    BIERNIK,
     DOPEŁNIACZ,
     MIEJSCOWNIK,
     NARZĘDNIK,
@@ -80,6 +81,39 @@ def test_rodzaj_zenski(count, oczek):
 def test_zenski_narzednik():
     assert odmiana_liczebnikowa("jednostka", 5, NARZĘDNIK) == "jednostkami"
     assert odmiana_liczebnikowa("jednostka", 1, NARZĘDNIK) == "jednostką"
+
+
+# ── rodzaj męskoosobowy (m1) — wykrywany automatycznie ──────────────────────
+
+
+def test_m1_mianownik_2_4_to_dopelniacz():
+    # m1: 'dwóch studentów' (dop. l.mn.), NIE 'dwaj studenci'
+    assert odmiana_liczebnikowa("student", 2) == "studentów"
+    assert odmiana_liczebnikowa("student", 3) == "studentów"
+    assert odmiana_liczebnikowa("student", 4) == "studentów"
+
+
+def test_m1_mianownik_5plus():
+    assert odmiana_liczebnikowa("student", 5) == "studentów"  # 'pięciu studentów'
+    assert odmiana_liczebnikowa("student", 1) == "student"
+
+
+def test_m1_biernik_to_dopelniacz():
+    # m1 biernik = dopełniacz: 'widzę dwóch/pięciu studentów'
+    assert odmiana_liczebnikowa("student", 2, BIERNIK) == "studentów"
+    assert odmiana_liczebnikowa("student", 5, BIERNIK) == "studentów"
+
+
+def test_m1_przypadki_zalezne_jak_reszta():
+    # oblique: rzeczownik w l.mn. tego przypadka (jak nie-m1)
+    assert odmiana_liczebnikowa("student", 2, NARZĘDNIK) == "studentami"
+    assert odmiana_liczebnikowa("student", 5, NARZĘDNIK) == "studentami"
+
+
+def test_niem1_2_4_pozostaje_zgoda():
+    # kontrola: nie-m1 przy 2-4 nadal daje mianownik l.mn. (zgoda)
+    assert odmiana_liczebnikowa("wydział", 2) == "wydziały"
+    assert odmiana_liczebnikowa("jednostka", 2) == "jednostki"
 
 
 # ── brak formy ──────────────────────────────────────────────────────────────
