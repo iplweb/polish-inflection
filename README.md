@@ -66,6 +66,9 @@ odmien("wydział", DOPEŁNIACZ)          # -> "wydziału"
 odmien("wydział", DOPEŁNIACZ, MNOGA)   # -> "wydziałów"
 ```
 
+`odmien` ma czytelny alias `odmien_rzeczownik` (symetria z `odmien_przymiotnik`
+/ `odmien_fraze`) — to ta sama funkcja.
+
 Zachowanie przy słowie spoza słownika jest sterowane parametrem `default`:
 
 ```python

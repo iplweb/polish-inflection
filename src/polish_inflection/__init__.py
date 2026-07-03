@@ -27,6 +27,7 @@ from .core import (
     odmien,
     odmien_lub_none,
     odmien_lub_wyraz,
+    odmien_rzeczownik,
     odmien_warianty,
     podaj,
 )
@@ -43,11 +44,12 @@ from .pytania import (
     z_kim_z_czym,
 )
 
-__version__ = "0.5.0"
+__version__ = "0.5.1"
 
 __all__ = [
     # funkcje odmiany
     "odmien",
+    "odmien_rzeczownik",
     "odmien_lub_none",
     "odmien_lub_wyraz",
     "odmien_warianty",

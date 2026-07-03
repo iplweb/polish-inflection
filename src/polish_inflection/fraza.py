@@ -15,12 +15,12 @@ override w django-polish-inflection.
 from __future__ import annotations
 
 from .const import (
+    DOPEŁNIACZ,
     MIANOWNIK,
     MĘSKI,
     NIJAKI,
     POJEDYNCZA,
     TEN_SAM_WYRAZ,
-    WOŁACZ,
     ŻEŃSKI,
 )
 from .core import _rozwiaz_brak, odmien, podaj
@@ -49,14 +49,18 @@ def _mianownikowa(token: str):
     return None
 
 
-def _ma_czytanie_zalezne(token: str) -> bool:
-    """Czy token ma rzeczownikowe czytanie w przypadku ZALEŻNYM (dopełnienie)?
+def _ma_czytanie_dopelniaczowe(token: str) -> bool:
+    """Czy token ma rzeczownikowe czytanie w DOPEŁNIACZU?
 
-    Zależny = dop./cel./bier./narz./miejsc. Mianownik i WOŁACZ nie liczą się —
-    wołacz to homograf nazwisk odmiejscowych (Lubelski, Warszawski), nie sygnał
-    dopełnienia dopełniaczowego.
+    Dopełniacz to kanoniczny sygnał dopełnienia zależnego w nazwach instytucji
+    („Instytut *czego?* Technologii", „Wydział *czego?* Matematyki"). Świadomie
+    NIE zamrażamy na innych przypadkach (zwł. bierniku): homografy przymiotników
+    pospolitych/odmiejscowych (polski→acc, Lubelski→voc) mają czytania nom/acc/
+    voc i muszą się odmieniać jak przydawki, nie zamrażać. Wielkość liter działa
+    naturalnie: „Instytut Polski" (Polska→dop. „Polski") zamraża, a „instytut
+    polski" (przymiotnik) odmienia się.
     """
-    return any(a.przypadek not in (MIANOWNIK, WOŁACZ) for a in _analizy(token))
+    return any(a.przypadek == DOPEŁNIACZ for a in _analizy(token))
 
 
 def _adj_lemat(token: str, rodzaj: str):
@@ -138,8 +142,8 @@ def odmien_fraze(fraza: str, przypadek: str, liczba: str = POJEDYNCZA, *, defaul
 
     # Przydawki przed głową (rzadkie, ale np. „Wyższa Szkoła", „Katolicki Uniwersytet").
     for i in range(head_idx):
-        if _ma_czytanie_zalezne(tokeny[i]):
-            continue  # nie przydawka — zostaw
+        if _ma_czytanie_dopelniaczowe(tokeny[i]):
+            continue  # dopełnienie dopełniaczowe — zostaw bez zmian
         lemat = _lemat_przydawki(tokeny[i], rodzaj, liczba)
         if lemat:
             f = odmien_przymiotnik(lemat, przypadek, rodzaj, liczba, default=None)
@@ -149,7 +153,7 @@ def odmien_fraze(fraza: str, przypadek: str, liczba: str = POJEDYNCZA, *, defaul
     # Po głowie: odmieniaj przydawki aż do pierwszego dopełnienia/markera/nieznanego.
     for i in range(head_idx + 1, len(tokeny)):
         tok = tokeny[i]
-        if tok.lower() in _MARKERY or _ma_czytanie_zalezne(tok):
+        if tok.lower() in _MARKERY or _ma_czytanie_dopelniaczowe(tok):
             break
         lemat = _lemat_przydawki(tok, rodzaj, liczba)
         if not lemat:

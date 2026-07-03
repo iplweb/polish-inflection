@@ -20,6 +20,7 @@ from .errors import Analiza, BrakOdmiany
 
 __all__ = [
     "odmien",
+    "odmien_rzeczownik",
     "odmien_lub_none",
     "odmien_lub_wyraz",
     "odmien_warianty",
@@ -160,6 +161,10 @@ def odmien(wyraz: str, przypadek: str, liczba: str = POJEDYNCZA, *, rodzaj=None,
     if default is TEN_SAM_WYRAZ:
         return wyraz
     return default
+
+
+#: Czytelny alias ``odmien`` (symetria z ``odmien_przymiotnik``/``odmien_fraze``).
+odmien_rzeczownik = odmien
 
 
 def odmien_lub_none(wyraz: str, przypadek: str, liczba: str = POJEDYNCZA):

@@ -46,6 +46,11 @@ KORPUS = [
     ("Instytut Technologii Stosowanej", DOPEŁNIACZ, "Instytutu Technologii Stosowanej"),
     ("Instytut Fizyki", DOPEŁNIACZ, "Instytutu Fizyki"),
     ("Wydział Matematyki i Informatyki", DOPEŁNIACZ, "Wydziału Matematyki i Informatyki"),
+    # przymiotnik z homografem rzeczownikowym (nom/acc) — MUSI się odmienić, nie zamrozić
+    ("język polski", DOPEŁNIACZ, "języka polskiego"),
+    # wielkość liter rozstrzyga: mała = przymiotnik (odmienia), wielka = nazwa własna (zamraża)
+    ("instytut polski", DOPEŁNIACZ, "instytutu polskiego"),
+    ("Instytut Polski", DOPEŁNIACZ, "Instytutu Polski"),
     # inne przypadki
     ("Uniwersytet Lubelski", MIEJSCOWNIK, "Uniwersytecie Lubelskim"),
     ("Uniwersytet Lubelski", CELOWNIK, "Uniwersytetowi Lubelskiemu"),
