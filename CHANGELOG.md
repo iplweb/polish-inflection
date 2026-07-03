@@ -9,6 +9,23 @@ PyPI: <https://pypi.org/project/polish-inflection/>
 
 ## [Nieopublikowane]
 
+## [0.7.2] — 2026-07-03
+
+### Poprawiono
+- **`odmien_fraze`: głowy SKOORDYNOWANE spójnikiem** („i"/„oraz"). W nazwach typu
+  „Katedra i Zakład Hematologii Onkologicznej" druga głowa („Zakład", też w
+  mianowniku) zostawała nieodmieniona, bo pętla łamała się na spójniku. Teraz obie
+  głowy się odmieniają → `"Katedry i Zakładu Hematologii Onkologicznej"` (ogon
+  dopełniaczowy „Hematologii Onkologicznej" nadal zamrożony).
+- **`odmien_fraze`: wielkoliterowy rzeczownik pospolity przesłaniany przez nazwisko-
+  homograf.** „Klinika" nie była kandydatem na głowę, bo `podaj("Klinika")` zwracał
+  najpierw nazwisko „Klinik" (acc/gen, bez mianownika) i przesłaniał pospolite
+  „klinika" (nom). Wybór głowy szuka teraz mianownika po wszystkich wariantach
+  wielkości liter → `"Klinika i Katedra Chirurgii"` = `"Kliniki i Katedry Chirurgii"`.
+- **Pakowanie: sdist pakietu kodu nie wiezie już `data-package/` (~49 MB `.marisa`).**
+  Hatchlingowy `include` był addytywny do całego drzewa VCS; `only-include` ogranicza
+  twardo. Sdist kodu spadł z ~28 MB do ~68 KB (wheel był poprawny od 0.7.0).
+
 ## [0.7.1] — 2026-07-03
 
 ### Poprawiono
@@ -187,7 +204,8 @@ PyPI: <https://pypi.org/project/polish-inflection/>
 - Pipeline BUILD (`polish-inflection-build build` / `refresh-sgjp`), CI
   (Python 3.9–3.13), pre-commit, README PL→EN, licencje (kod BSD-2 + dane SGJP).
 
-[Nieopublikowane]: https://github.com/iplweb/polish-inflection/compare/v0.7.1...HEAD
+[Nieopublikowane]: https://github.com/iplweb/polish-inflection/compare/v0.7.2...HEAD
+[0.7.2]: https://github.com/iplweb/polish-inflection/compare/v0.7.1...v0.7.2
 [0.7.1]: https://github.com/iplweb/polish-inflection/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/iplweb/polish-inflection/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/iplweb/polish-inflection/compare/v0.5.2...v0.6.0
