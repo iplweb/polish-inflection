@@ -9,6 +9,24 @@ PyPI: <https://pypi.org/project/polish-inflection/>
 
 ## [Nieopublikowane]
 
+## [0.4.1] — 2026-07-03
+
+### Dodano
+- **Marker PEP 561 `py.typed`** — mypy/pyright u użytkowników uwzględniają teraz
+  adnotacje typów pakietu (wcześniej były ignorowane mimo pełnego otypowania).
+
+### Zmieniono
+- **`odmiana_liczebnikowa` obsługuje ułamki** — wartość ułamkowa (`2.5`) daje
+  dopełniacz l.poj. (`2,5 wydziału`), niezależnie od przypadka frazy, zamiast
+  cichego zaokrąglenia przez `int()` do `2` (`wydziały`). Wartości całkowite
+  zapisane jako `float` (`2.0`) nadal działają jak `int`.
+
+### Poprawiono
+- **`wersja_sgjp` czyta wersję niezależnie od kolejności nagłówka SGJP** —
+  wspólny iterator nagłówka respektuje blok `#<COPYRIGHT>…#</COPYRIGHT>` (którego
+  treść nie ma prefiksu `#`), więc przestawienie `#!DICT-ID` za blok licencji nie
+  da już po cichu `wersja_sgjp: null` w `BUILD_INFO.json`.
+
 ## [0.4.0] — 2026-07-03
 
 ### Dodano
@@ -76,7 +94,8 @@ PyPI: <https://pypi.org/project/polish-inflection/>
 - Pipeline BUILD (`polish-inflection-build build` / `refresh-sgjp`), CI
   (Python 3.9–3.13), pre-commit, README PL→EN, licencje (kod BSD-2 + dane SGJP).
 
-[Nieopublikowane]: https://github.com/iplweb/polish-inflection/compare/v0.4.0...HEAD
+[Nieopublikowane]: https://github.com/iplweb/polish-inflection/compare/v0.4.1...HEAD
+[0.4.1]: https://github.com/iplweb/polish-inflection/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/iplweb/polish-inflection/compare/v0.3.1...v0.4.0
 [0.3.1]: https://github.com/iplweb/polish-inflection/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/iplweb/polish-inflection/compare/v0.2.0...v0.3.0

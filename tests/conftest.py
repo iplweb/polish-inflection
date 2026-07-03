@@ -1,6 +1,6 @@
 """Fixtury testowe.
 
-Budujemy MAŁE indeksy DAWG z realnych linii SGJP dla słów domenowych
+Budujemy MAŁE indeksy marisa-trie z realnych linii SGJP dla słów domenowych
 (``tests/fixtures/sgjp_domain.tab``) i wskazujemy na nie runtime przez
 ``core._ustaw_katalog_danych``. Dzięki temu testy ``core`` biegną na prawdziwych
 formach, ale bez zależności od zbudowanego pakietowego indeksu ani 42 MB SGJP.
@@ -18,8 +18,8 @@ DOMAIN_TAB = FIXTURES / "sgjp_domain.tab"
 
 @pytest.fixture(scope="session")
 def zbudowane_dane(tmp_path_factory) -> Path:
-    """Zbuduj odmien.dawg/podaj.dawg z fixtury domenowej; zwróć katalog."""
-    out = tmp_path_factory.mktemp("dawg")
+    """Zbuduj odmien.marisa/podaj.marisa z fixtury domenowej; zwróć katalog."""
+    out = tmp_path_factory.mktemp("indeksy")
     build.zbuduj_z_tab(DOMAIN_TAB, out, data_build="test")
     return out
 

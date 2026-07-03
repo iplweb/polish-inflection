@@ -41,6 +41,39 @@ def test_ujemne_przez_abs():
     assert odmiana_liczebnikowa("wydział", -5) == "wydziałów"
 
 
+# ── ułamki: dopełniacz l.poj. ("2,5 wydziału") ──────────────────────────────
+
+
+@pytest.mark.parametrize(
+    "count,oczek",
+    [
+        (2.5, "wydziału"),
+        (0.5, "wydziału"),
+        (1.5, "wydziału"),
+        (10.25, "wydziału"),
+        (-2.5, "wydziału"),  # ułamek ujemny też -> dop. l.poj.
+    ],
+)
+def test_ulamek_dopelniacz_lpoj(count, oczek):
+    assert odmiana_liczebnikowa("wydział", count) == oczek
+
+
+def test_ulamek_calkowity_float_jak_int():
+    # 2.0 to wartość całkowita -> normalna reguła 2-4 (mianownik l.mn.), NIE ułamek
+    assert odmiana_liczebnikowa("wydział", 2.0) == "wydziały"
+    assert odmiana_liczebnikowa("wydział", 5.0) == "wydziałów"
+
+
+def test_ulamek_rodzaj_zenski():
+    assert odmiana_liczebnikowa("jednostka", 2.5) == "jednostki"  # dop. l.poj. żeński
+
+
+def test_ulamek_niezalezny_od_przypadka_frazy():
+    # ułamek rządzi dop. l.poj. niezależnie od zadanego przypadka frazy
+    assert odmiana_liczebnikowa("wydział", 2.5, NARZĘDNIK) == "wydziału"
+    assert odmiana_liczebnikowa("wydział", 2.5, DOPEŁNIACZ) == "wydziału"
+
+
 # ── przypadki zależne: rzeczownik w l.mn. tego przypadka ─────────────────────
 
 

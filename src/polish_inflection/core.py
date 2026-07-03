@@ -41,8 +41,8 @@ def _rozwiaz_brak(wyraz, default):
 
 
 # Leniwie ładowane, mmapowane indeksy. Cache modułowy.
-_odmien_dawg = None
-_podaj_dawg = None
+_odmien_trie = None
+_podaj_trie = None
 
 # Katalog z danymi — domyślnie pakietowy ``polish_inflection/data``.
 # Testy podmieniają go przez ``_ustaw_katalog_danych``.
@@ -54,15 +54,15 @@ def _domyslny_katalog_danych() -> Path:
 
 
 def _ustaw_katalog_danych(sciezka) -> None:
-    """Wskaż inny katalog z ``odmien.dawg``/``podaj.dawg`` i wyczyść cache.
+    """Wskaż inny katalog z ``odmien.marisa``/``podaj.marisa`` i wyczyść cache.
 
-    Używane w testach (fixture DAWG budowany do tmp) oraz w integracji.
+    Używane w testach (fixture marisa-trie budowany do tmp) oraz w integracji.
     ``None`` przywraca katalog pakietowy.
     """
-    global _katalog_danych, _odmien_dawg, _podaj_dawg
+    global _katalog_danych, _odmien_trie, _podaj_trie
     _katalog_danych = Path(sciezka) if sciezka is not None else None
-    _odmien_dawg = None
-    _podaj_dawg = None
+    _odmien_trie = None
+    _podaj_trie = None
 
 
 def _wczytaj(nazwa: str):
@@ -78,24 +78,24 @@ def _wczytaj(nazwa: str):
     return trie
 
 
-def _dawg_odmien():
-    global _odmien_dawg
-    if _odmien_dawg is None:
-        _odmien_dawg = _wczytaj("odmien.marisa")
-    return _odmien_dawg
+def _trie_odmien():
+    global _odmien_trie
+    if _odmien_trie is None:
+        _odmien_trie = _wczytaj("odmien.marisa")
+    return _odmien_trie
 
 
-def _dawg_podaj():
-    global _podaj_dawg
-    if _podaj_dawg is None:
-        _podaj_dawg = _wczytaj("podaj.marisa")
-    return _podaj_dawg
+def _trie_podaj():
+    global _podaj_trie
+    if _podaj_trie is None:
+        _podaj_trie = _wczytaj("podaj.marisa")
+    return _podaj_trie
 
 
 def _formy(wyraz: str, przypadek: str, liczba: str) -> list[str]:
     """Posortowana lista poprawnych form w slocie (może być pusta)."""
     klucz = f"{wyraz}\t{przypadek}\t{liczba}"
-    wartosci = _dawg_odmien().get(klucz)
+    wartosci = _trie_odmien().get(klucz)
     if not wartosci:
         return []
     return sorted(v.decode("utf-8") for v in wartosci)
@@ -190,7 +190,7 @@ def _rekordy_podaj(wyraz: str, liczba: str | None = None):
     """Surowe rekordy analizy ``(lemat, przypadek, liczba, rodzaj_SUROWY)`` — rodzaj
     z podtypem SGJP (m1/m2/m3/f/n). Do użytku WEWNĘTRZNEGO (np. wykrywanie
     męskoosobowego w liczebnikach); publiczne API zwęża rodzaj (patrz ``podaj``)."""
-    wartosci = _dawg_podaj().get(wyraz)
+    wartosci = _trie_podaj().get(wyraz)
     if not wartosci:
         return []
     rekordy = []

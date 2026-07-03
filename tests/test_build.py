@@ -4,7 +4,7 @@ from pathlib import Path
 
 import marisa_trie
 
-from polish_inflection.build import _pary_dawg, parsuj_linie, zbuduj_z_tab
+from polish_inflection.build import _pary_indeksow, parsuj_linie, zbuduj_z_tab
 
 FIXTURES = Path(__file__).parent / "fixtures"
 DOMAIN_TAB = FIXTURES / "sgjp_domain.tab"
@@ -21,7 +21,7 @@ def test_routing_depr_tylko_do_podaj():
         "wydziału\twydział\tsubst:sg:gen:m3\tx\t",
         "chłopy\tchłop\tdepr:pl:nom.acc.voc:m2\tx\t",
     ]
-    odmien_pary, podaj_pary = _pary_dawg(parsuj_linie(linie))
+    odmien_pary, podaj_pary = _pary_indeksow(parsuj_linie(linie))
     odmien_klucze = {k for k, _ in odmien_pary}
     podaj_klucze = {k for k, _ in podaj_pary}
     # depr NIE trafia do odmien
@@ -32,7 +32,7 @@ def test_routing_depr_tylko_do_podaj():
 
 
 def test_wartosc_odmien_to_sama_forma():
-    odmien_pary, _ = _pary_dawg(parsuj_linie(["wydziału\twydział\tsubst:sg:gen:m3\tx\t"]))
+    odmien_pary, _ = _pary_indeksow(parsuj_linie(["wydziału\twydział\tsubst:sg:gen:m3\tx\t"]))
     assert odmien_pary == [("wydział\tgen\tsg", "wydziału".encode())]
 
 
