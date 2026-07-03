@@ -116,6 +116,18 @@ def test_niem1_2_4_pozostaje_zgoda():
     assert odmiana_liczebnikowa("jednostka", 2) == "jednostki"
 
 
+# ── homograf rodzajowy: profesor = m1 (osoba) + f (nieodmienny) ─────────────
+
+
+def test_homograf_profesor_bierze_forme_m1():
+    # slot dop. l.mn. zawiera 'profesor' (żeński nieodm.) i 'profesorów' (m1);
+    # dla liczenia osób bierzemy m1 -> 'profesorów', nie 'profesor'
+    assert odmiana_liczebnikowa("profesor", 5) == "profesorów"
+    assert odmiana_liczebnikowa("profesor", 2) == "profesorów"  # m1 -> dopełniacz
+    assert odmiana_liczebnikowa("profesor", 5, NARZĘDNIK) == "profesorami"
+    assert odmiana_liczebnikowa("profesor", 1) == "profesor"  # mianownik l.poj.
+
+
 # ── brak formy ──────────────────────────────────────────────────────────────
 
 
