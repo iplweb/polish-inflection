@@ -67,8 +67,23 @@ def test_niepoprawny_lemat_zwraca_default():
 
 
 # ── Charakteryzacja progowa przeciw całemu SGJP ─────────────────────────────
+# Pełny SGJP jest w git-lfs; w CI bez pobrania LFS zostają wskaźniki (nie gzip).
+# Bierzemy tylko realne gzipy (magic 1f 8b) — inaczej test się pomija (skipif).
 
-_SGJP = sorted((Path(__file__).resolve().parents[1] / "data" / "sgjp").glob("*.tab.gz"))
+
+def _realny_gzip(p: Path) -> bool:
+    try:
+        with open(p, "rb") as fh:
+            return fh.read(2) == b"\x1f\x8b"
+    except OSError:
+        return False
+
+
+_SGJP = [
+    p
+    for p in sorted((Path(__file__).resolve().parents[1] / "data" / "sgjp").glob("*.tab.gz"))
+    if _realny_gzip(p)
+]
 _PRZ = {"nom", "gen", "dat", "acc", "inst", "loc", "voc"}
 _RODZ = {"m1", "m2", "m3", "f", "n"}
 
