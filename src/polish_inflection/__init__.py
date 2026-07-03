@@ -31,6 +31,7 @@ from .core import (
     podaj,
 )
 from .errors import Analiza, BrakOdmiany
+from .przymiotnik import odmien_przymiotnik
 from .pytania import (
     kogo_co,
     kogo_czego,
@@ -50,6 +51,8 @@ __all__ = [
     "odmien_lub_wyraz",
     "odmien_warianty",
     "podaj",
+    # odmiana przymiotnika (regułowa, bez indeksu)
+    "odmien_przymiotnik",
     # funkcje pytaniowe (kanoniczne; pełne aliasy w polish_inflection.pytania)
     "kogo_czego",
     "komu_czemu",
