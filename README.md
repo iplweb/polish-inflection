@@ -225,7 +225,8 @@ Dwie warstwy, jawnie rozdzielone:
 
 ### Ograniczenia (v1)
 
-- Tylko **rzeczowniki**. Bez czasowników, przymiotników, liczebników.
+- Rdzeń danych: **rzeczowniki** (indeks SGJP). Przymiotniki i zgoda we frazach
+  są regułowe (`odmien_przymiotnik`, `odmien_fraze`); brak czasowników.
 - Bez guessera słów spoza słownika i bez analizy biegnącego tekstu
   (segmentacji/tokenizacji) — świadome YAGNI.
 - Zakres: 7 przypadków × 2 liczby, oba kierunki (`odmien` / `podaj`).
@@ -382,7 +383,14 @@ Two clearly separated layers:
 
 ### Limitations (v1)
 
-- **Nouns only.** No verbs, adjectives or numerals.
+- Data core: **nouns** (SGJP index). Adjectives and phrase agreement are
+  rule-based (`odmien_przymiotnik`, `odmien_fraze`); no verbs.
 - No out-of-dictionary guesser and no running-text analysis
   (segmentation/tokenization) — deliberate YAGNI.
 - Scope: 7 cases × 2 numbers, both directions (`odmien` / `podaj`).
+
+---
+
+## Support graciously provided by
+
+[![IPLweb](https://www.iplweb.pl/images/ipl-logo-large.png)](https://www.iplweb.pl)
