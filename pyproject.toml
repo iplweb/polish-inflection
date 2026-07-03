@@ -1,6 +1,6 @@
 [project]
 name = "polish-inflection"
-version = "0.4.1"
+version = "0.5.0"
 description = "Lekka odmiana polskich rzeczowników przez przypadki (dane SGJP, indeks marisa-trie, mmap)."
 readme = "README.md"
 requires-python = ">=3.9"
