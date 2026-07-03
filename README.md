@@ -1,5 +1,7 @@
 # polish-inflection
 
+[![PyPI](https://img.shields.io/pypi/v/polish-inflection.svg)](https://pypi.org/project/polish-inflection/)
+[![Python versions](https://img.shields.io/pypi/pyversions/polish-inflection.svg)](https://pypi.org/project/polish-inflection/)
 [![CI](https://github.com/iplweb/polish-inflection/actions/workflows/ci.yml/badge.svg)](https://github.com/iplweb/polish-inflection/actions/workflows/ci.yml)
 [![License: BSD-2-Clause](https://img.shields.io/badge/License-BSD--2--Clause-blue.svg)](LICENSE)
 
