@@ -9,6 +9,22 @@ PyPI: <https://pypi.org/project/polish-inflection/>
 
 ## [Nieopublikowane]
 
+## [0.7.3] — 2026-07-03
+
+### Dodano
+- **`odmien_fraze`: koordynacja PRZECINKOWA głów.** Nazwy typu „Katedra, Zakład i
+  Klinika Chirurgii" odmieniają wszystkie głowy → `"Katedry, Zakładu i Kliniki
+  Chirurgii"`. Końcowe przecinki są oddzielane od rdzenia tokenu (analiza) i
+  doklejane z powrotem (wynik), więc „Katedra," jest poprawnie rozpoznana jako głowa.
+
+### Poprawiono
+- **`odmien_fraze`: dopełnienie dopełniaczowe będące homografem mianownika l.mn.**
+  („Matematyki" = dop. l.poj. / mian. l.mn. od „matematyka") nie jest już brane za
+  głowę skoordynowaną. Wykrywanie głów po głowie wymaga mianownika w LICZBIE frazy
+  (l.poj.), więc „Wydział Matematyki i Informatyki" pozostaje `"Wydziału Matematyki
+  i Informatyki"` (ogon zamrożony), a prawdziwe głowy w mianowniku l.poj. („Klinika",
+  „Zakład") odmieniają się.
+
 ## [0.7.2] — 2026-07-03
 
 ### Poprawiono
@@ -204,7 +220,8 @@ PyPI: <https://pypi.org/project/polish-inflection/>
 - Pipeline BUILD (`polish-inflection-build build` / `refresh-sgjp`), CI
   (Python 3.9–3.13), pre-commit, README PL→EN, licencje (kod BSD-2 + dane SGJP).
 
-[Nieopublikowane]: https://github.com/iplweb/polish-inflection/compare/v0.7.2...HEAD
+[Nieopublikowane]: https://github.com/iplweb/polish-inflection/compare/v0.7.3...HEAD
+[0.7.3]: https://github.com/iplweb/polish-inflection/compare/v0.7.2...v0.7.3
 [0.7.2]: https://github.com/iplweb/polish-inflection/compare/v0.7.1...v0.7.2
 [0.7.1]: https://github.com/iplweb/polish-inflection/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/iplweb/polish-inflection/compare/v0.6.0...v0.7.0

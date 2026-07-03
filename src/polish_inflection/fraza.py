@@ -66,6 +66,21 @@ def _mianownikowa(token: str, proper: bool = True):
     return None
 
 
+def _mianownikowa_w_liczbie(token: str, liczba: str, proper: bool = True):
+    """Jak :func:`_mianownikowa`, ale wymaga mianownika w KONKRETNEJ liczbie.
+
+    Do wykrywania głów skoordynowanych: dopełnienie dopełniaczowe („Matematyki")
+    bywa homografem mianownika l.MNOGIEJ („matematyki" = nom pl od „matematyka"),
+    a głowa to mianownik w liczbie frazy (zwykle l.poj.: „Klinika", „Zakład"). Bez
+    filtra liczby dopełnienia byłyby brane za głowy i re-odmieniane."""
+    proby = (token, token.lower(), token.capitalize()) if proper else (token,)
+    for w in proby:
+        for a in podaj(w):
+            if a.przypadek == MIANOWNIK and a.liczba == liczba:
+                return a
+    return None
+
+
 def _ma_czytanie_dopelniaczowe(token: str, proper: bool = True) -> bool:
     """Czy token ma rzeczownikowe czytanie w DOPEŁNIACZU?
 
@@ -154,9 +169,15 @@ def odmien_fraze(fraza: str, przypadek: str, liczba: str = POJEDYNCZA, *, defaul
     >>> odmien_fraze("dupa wołowa", DOPEŁNIACZ)   # mała litera = zwykłe rzeczowniki
     'dupy wołowej'
     """
-    tokeny = fraza.split()
-    if not tokeny:
+    raw = fraza.split()
+    if not raw:
         return fraza
+
+    # Oddziel końcowe przecinki/średniki od rdzenia tokenu (koordynacja przecinkowa:
+    # „Katedra, Zakład i Klinika ..."). Analizujemy/odmieniamy rdzeń, a interpunkcję
+    # doklejamy z powrotem przy składaniu — inaczej „Katedra," nie byłaby głową.
+    tokeny = [t.rstrip(",;") for t in raw]
+    sufiksy = [t[len(rdzen) :] for t, rdzen in zip(raw, tokeny)]
 
     # Reguła wielkości liter: fraza w CAŁOŚCI małą literą ⇒ to NIE nazwa własna —
     # traktuj jak zwykłe rzeczowniki (bez gazeteera, bez kapitalizacji). Dopiero gdy
@@ -164,18 +185,18 @@ def odmien_fraze(fraza: str, przypadek: str, liczba: str = POJEDYNCZA, *, defaul
     # („chyba że ich nie znajdziesz").
     proper = fraza != fraza.lower()
     if not proper:
-        wynik = _odmien(tokeny, przypadek, liczba, proper=False)
+        wynik = _odmien(tokeny, sufiksy, przypadek, liczba, proper=False)
         if wynik is not None:
             return wynik
         proper = True
 
-    wynik = _odmien(tokeny, przypadek, liczba, proper=True)
+    wynik = _odmien(tokeny, sufiksy, przypadek, liczba, proper=True)
     if wynik is None:
         return _rozwiaz_brak(fraza, default)
     return wynik
 
 
-def _odmien(tokeny, przypadek: str, liczba: str, proper: bool):
+def _odmien(tokeny, sufiksy, przypadek: str, liczba: str, proper: bool):
     """Właściwa odmiana frazy w danym trybie (``proper``). ``None`` = brak głowy
     lub brak formy głowy (sygnał do fallbacku / obsługi ``default`` przez wrapper)."""
     head_idx, head_a = _wybierz_glowe(tokeny, proper)
@@ -208,14 +229,15 @@ def _odmien(tokeny, przypadek: str, liczba: str, proper: bool):
     while i < len(tokeny):
         tok = tokeny[i]
         low = tok.lower()
-        if low in _MARKERY or _ma_czytanie_dopelniaczowe(tok, proper):
-            break
         if low in _SPOJNIKI:
             i += 1  # spójnik koordynujący — zostaw, szukaj kolejnej głowy/przydawki
             continue
-        m = _mianownikowa(tok, proper)
+        # Głowa skoordynowana (rzeczownik w MIANOWNIKU w liczbie frazy) sprawdzana
+        # PRZED zamrożeniem: mianownik wygrywa nad homograficznym czytaniem dopełniacza
+        # (nazwisko „Klinik" dla „Klinika"). Filtr liczby odcina dopełnienia będące
+        # homografem mianownika l.mn. („Matematyki") — te mają zostać zamrożone.
+        m = _mianownikowa_w_liczbie(tok, liczba, proper)
         if m is not None and not _jest_przymiotnik(tok):
-            # skoordynowana głowa (kolejny rzeczownik w mianowniku) — odmień jak głowę
             f = odmien(m.lemat, przypadek, liczba, default=None)
             if f is None:
                 break
@@ -223,6 +245,8 @@ def _odmien(tokeny, przypadek: str, liczba: str, proper: bool):
             rodzaj_biezacy = _rodzaj_zgody(m.lemat, m.rodzaj)
             i += 1
             continue
+        if low in _MARKERY or _ma_czytanie_dopelniaczowe(tok, proper):
+            break  # dopełnienie dopełniaczowe / marker — zamroź ogon
         lemat = _lemat_przydawki(tok, rodzaj_biezacy)
         if not lemat:
             break
@@ -232,4 +256,4 @@ def _odmien(tokeny, przypadek: str, liczba: str, proper: bool):
         wynik[i] = _zachowaj_wielkosc(tok, f)
         i += 1
 
-    return " ".join(wynik)
+    return " ".join(w + s for w, s in zip(wynik, sufiksy))
