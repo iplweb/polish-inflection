@@ -1,7 +1,7 @@
 """polish-inflection — odmiana polskich rzeczowników przez przypadki (dane SGJP).
 
-Lekka, czysto-Pythonowa biblioteka: kierunek generacji (``odmien``) i analizy
-zwrotnej (``podaj``), oparta o kompaktowe indeksy DAWG zbudowane z danych SGJP.
+Lekka biblioteka: kierunek generacji (``odmien``) i analizy zwrotnej (``podaj``),
+oparta o kompaktowe indeksy marisa-trie zbudowane z danych SGJP.
 """
 
 from .const import (
@@ -12,12 +12,16 @@ from .const import (
     MIANOWNIK,
     MIEJSCOWNIK,
     MNOGA,
+    MĘSKI,
     NARZĘDNIK,
+    NIJAKI,
     POJEDYNCZA,
     PRZYPADKI,
     RAISES,
+    RODZAJE,
     TEN_SAM_WYRAZ,
     WOŁACZ,
+    ŻEŃSKI,
 )
 from .core import (
     odmien,
@@ -37,7 +41,7 @@ from .pytania import (
     z_kim_z_czym,
 )
 
-__version__ = "0.3.1"
+__version__ = "0.4.0"
 
 __all__ = [
     # funkcje odmiany
@@ -70,6 +74,11 @@ __all__ = [
     "POJEDYNCZA",
     "MNOGA",
     "LICZBY",
+    # rodzaje
+    "MĘSKI",
+    "ŻEŃSKI",
+    "NIJAKI",
+    "RODZAJE",
     # sentinele
     "TEN_SAM_WYRAZ",
     "RAISES",

@@ -101,27 +101,60 @@ def _formy(wyraz: str, przypadek: str, liczba: str) -> list[str]:
     return sorted(v.decode("utf-8") for v in wartosci)
 
 
-def odmien(wyraz: str, przypadek: str, liczba: str = POJEDYNCZA, *, default=RAISES):
+def _forma_o_rodzaju(formy, wyraz, przypadek, liczba, rodzaj):
+    """Forma ze slotu, której analiza (``podaj``) ma dany ``rodzaj``. ``None`` gdy brak."""
+    for forma in formy:
+        if any(
+            a.lemat == wyraz
+            and a.przypadek == przypadek
+            and a.liczba == liczba
+            and a.rodzaj == rodzaj
+            for a in podaj(forma)
+        ):
+            return forma
+    return None
+
+
+def odmien(wyraz: str, przypadek: str, liczba: str = POJEDYNCZA, *, rodzaj=None, default=RAISES):
     """Zwróć główną formę ``wyraz`` w danym przypadku i liczbie.
 
-    Zachowanie przy braku formy (słowo spoza słownika lub liczba nieistniejąca
-    dla lematu, np. ``sg`` dla plurale tantum):
+    ``rodzaj`` (opcjonalnie) wymusza rodzaj gramatyczny dla homografów rodzajowych
+    (stałe ``MĘSKI`` / ``ŻEŃSKI`` / ``NIJAKI``). Gdy podany, zwracamy formę o tym
+    rodzaju; jeśli słownik nie ma formy tego rodzaju w tym slocie — traktujemy to
+    jak brak formy (zob. ``default``).
+
+    Bez ``rodzaj`` główna forma: przy homografii/oboczności preferujemy formę
+    **odmienioną** (różną od lematu ``wyraz``) nad tożsamościową — dla homografu
+    rodzajów (np. ``profesor`` = męski odmienny + żeński nieodmienny) dostajemy
+    ``profesora``/``profesorów``, a nie nieodmienne ``profesor``. Wśród kandydatów
+    wybór jest deterministyczny (sortowanie bajtowe).
+
+    Zachowanie przy braku formy (słowo spoza słownika, nieistniejąca liczba, lub
+    brak formy żądanego ``rodzaj``):
 
     - ``default`` niepodany         -> ``raise BrakOdmiany``
     - ``default is TEN_SAM_WYRAZ``  -> zwróć ``wyraz`` (passthrough)
     - ``default is None``           -> zwróć ``None``
     - ``default = <cokolwiek>``     -> zwróć ``default``
 
-    Główna forma = pierwsza po sortowaniu bajtowym wartości slotu (deterministyczna).
-
-    >>> odmien("wydział", "gen")
+    >>> odmien("wydział", DOPEŁNIACZ)
     'wydziału'
-    >>> odmien("wydział", "gen", "pl")
-    'wydziałów'
+    >>> odmien("profesor", DOPEŁNIACZ)                     # bez rodzaju: forma odmieniona
+    'profesora'
+    >>> odmien("profesor", DOPEŁNIACZ, rodzaj=ŻEŃSKI)      # wymuszony żeński (nieodmienny)
+    'profesor'
+    >>> odmien("profesor", DOPEŁNIACZ, MNOGA, rodzaj=MĘSKI)
+    'profesorów'
     """
     formy = _formy(wyraz, przypadek, liczba)
     if formy:
-        return formy[0]
+        if rodzaj is None:
+            odmienione = [f for f in formy if f != wyraz]
+            return (odmienione or formy)[0]
+        wybor = _forma_o_rodzaju(formy, wyraz, przypadek, liczba, rodzaj)
+        if wybor is not None:
+            return wybor
+        # brak formy żądanego rodzaju -> jak brak formy (obsługa default poniżej)
     if default is RAISES:
         raise BrakOdmiany((wyraz, przypadek, liczba))
     if default is TEN_SAM_WYRAZ:
@@ -144,6 +177,34 @@ def odmien_warianty(wyraz: str, przypadek: str, liczba: str = POJEDYNCZA) -> lis
     return _formy(wyraz, przypadek, liczba)
 
 
+def _rodzaj_publiczny(rodzaj_surowy: str) -> str:
+    """Zwęź rodzaj SGJP do publicznego: m1/m2/m3 -> "m" (MĘSKI), f -> "f", n -> "n".
+
+    Podtypy rodzaju męskiego (męskoosobowy m1, męskozwierzęcy m2, męskorzeczowy m3)
+    są szczegółem implementacyjnym — publicznie widać tylko męski/żeński/nijaki.
+    """
+    return rodzaj_surowy[:1] if rodzaj_surowy else rodzaj_surowy
+
+
+def _rekordy_podaj(wyraz: str, liczba: str | None = None):
+    """Surowe rekordy analizy ``(lemat, przypadek, liczba, rodzaj_SUROWY)`` — rodzaj
+    z podtypem SGJP (m1/m2/m3/f/n). Do użytku WEWNĘTRZNEGO (np. wykrywanie
+    męskoosobowego w liczebnikach); publiczne API zwęża rodzaj (patrz ``podaj``)."""
+    wartosci = _dawg_podaj().get(wyraz)
+    if not wartosci:
+        return []
+    rekordy = []
+    for w in wartosci:
+        pola = w.decode("utf-8").split("\t")
+        if len(pola) != 4:
+            continue
+        lemat, przypadek, lb, rodzaj = pola
+        if liczba is not None and lb != liczba:
+            continue
+        rekordy.append((lemat, przypadek, lb, rodzaj))
+    return rekordy
+
+
 def podaj(wyraz: str, liczba: str | None = None) -> list[Analiza]:
     """Kierunek zwrotny: forma -> lista analiz.
 
@@ -152,19 +213,14 @@ def podaj(wyraz: str, liczba: str | None = None) -> list[Analiza]:
     deprecjatywne (``depr``). Opcjonalny ``liczba`` ("sg"/"pl") zawęża wynik.
     Nieznana forma -> ``[]``.
 
+    ``Analiza.rodzaj`` to rodzaj publiczny: ``MĘSKI`` (``"m"``) / ``ŻEŃSKI``
+    (``"f"``) / ``NIJAKI`` (``"n"``).
+
     >>> podaj("jednostki")  # doctest: +SKIP
     [Analiza('jednostka','gen','sg','f'), Analiza('jednostka','nom','pl','f'), ...]
     """
-    wartosci = _dawg_podaj().get(wyraz)
-    if not wartosci:
-        return []
-    analizy: set[Analiza] = set()
-    for w in wartosci:
-        pola = w.decode("utf-8").split("\t")
-        if len(pola) != 4:
-            continue
-        lemat, przypadek, lb, rodzaj = pola
-        if liczba is not None and lb != liczba:
-            continue
-        analizy.add(Analiza(lemat, przypadek, lb, rodzaj))
+    analizy = {
+        Analiza(lemat, przypadek, lb, _rodzaj_publiczny(rodzaj))
+        for lemat, przypadek, lb, rodzaj in _rekordy_podaj(wyraz, liczba)
+    }
     return sorted(analizy, key=lambda a: (a.liczba, a.przypadek, a.lemat, a.rodzaj))

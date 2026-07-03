@@ -11,7 +11,7 @@ class Analiza(NamedTuple):
     lemat: str
     przypadek: str  # jedna ze stałych PRZYPADKI: "nom".."voc"
     liczba: str  # "sg" / "pl"
-    rodzaj: str  # tag rodzaju SGJP: "m1","m2","m3","f","n","ncol",...
+    rodzaj: str  # rodzaj publiczny: MĘSKI "m" / ŻEŃSKI "f" / NIJAKI "n"
 
 
 class BrakOdmiany(KeyError):

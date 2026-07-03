@@ -25,7 +25,7 @@ from .const import (
     POJEDYNCZA,
     TEN_SAM_WYRAZ,
 )
-from .core import _rozwiaz_brak, odmien, odmien_warianty, podaj
+from .core import _rekordy_podaj, _rozwiaz_brak, odmien, podaj
 
 __all__ = [
     # kanoniczne
@@ -123,35 +123,23 @@ def podstawowa_forma(wyraz: str, *, default=TEN_SAM_WYRAZ):
     return sorted(a.lemat for a in analizy)[0]
 
 
-def _rodzaj_dominujacy(wyraz: str) -> str | None:
-    """Rodzaj rzeczownika (z danych SGJP). ``m1`` gdy istnieje analiza męskoosobowa
-    (homograf typu ``profesor`` = m1/f traktujemy jak m1 — licząc, chodzi o osoby),
-    inaczej pierwszy deterministycznie. ``None`` gdy wyraz nieznany."""
-    rodzaje = {a.rodzaj for a in podaj(wyraz)}
-    if "m1" in rodzaje:
-        return "m1"
-    return sorted(rodzaje)[0] if rodzaje else None
+def _rodzaj_do_liczebnika(wyraz: str):
+    """Zwróć ``(meskoosobowy, rodzaj_publiczny)`` na podstawie surowych danych SGJP.
 
-
-def _forma_rodzaj(wyraz, przypadek, liczba, rodzaj, default):
-    """Forma z ``odmien``, ale przy oboczności/homografii wybrana zgodnie z
-    ``rodzaj`` (np. dla ``profesor`` bierzemy m1 ``profesorów``, nie nieodmienne
-    żeńskie ``profesor``). Gdy jedna forma lub brak rodzaju — jak ``odmien``."""
-    warianty = odmien_warianty(wyraz, przypadek, liczba)
-    if not warianty:
-        return _rozwiaz_brak(wyraz, default)
-    if len(warianty) == 1 or rodzaj is None:
-        return warianty[0]
-    for forma in warianty:
-        if any(
-            a.lemat == wyraz
-            and a.przypadek == przypadek
-            and a.liczba == liczba
-            and a.rodzaj == rodzaj
-            for a in podaj(forma)
-        ):
-            return forma
-    return warianty[0]
+    ``meskoosobowy`` (podtyp m1) decyduje o RZĄDZIE liczebnika i jest szczegółem
+    wewnętrznym; ``rodzaj_publiczny`` (``"m"``/``"f"``/``"n"``) służy do wyboru
+    właściwej formy przy homografie rodzajów. Homograf z rodzajem męskim
+    traktujemy jako męski (licząc, chodzi zwykle o osoby)."""
+    surowe = {r[3] for r in _rekordy_podaj(wyraz)}
+    meskoosobowy = "m1" in surowe
+    publiczne = {r[:1] for r in surowe}  # {"m","f","n"}
+    if "m" in publiczne:
+        rodzaj = "m"
+    elif publiczne:
+        rodzaj = sorted(publiczne)[0]
+    else:
+        rodzaj = None
+    return meskoosobowy, rodzaj
 
 
 def odmiana_liczebnikowa(wyraz, count, przypadek=MIANOWNIK, *, default=TEN_SAM_WYRAZ):
@@ -161,23 +149,23 @@ def odmiana_liczebnikowa(wyraz, count, przypadek=MIANOWNIK, *, default=TEN_SAM_W
     w zadanym przypadku frazy. Liczebnik słownie NIE jest generowany — numer
     doklejasz sam (``f"{count} {odmiana_liczebnikowa(...)}"``).
 
-    Rodzaj (w tym męskoosobowy m1) jest WYKRYWANY AUTOMATYCZNIE z danych SGJP,
-    więc rząd liczebnika jest dobrany poprawnie dla obu grup.
+    Rodzaj jest wykrywany automatycznie z danych SGJP; w szczególności podtyp
+    **męskoosobowy** (rozróżnienie ``pięciu studentów`` vs ``pięć stołów``) jest
+    ustalany wewnętrznie — nie musisz go podawać ani znać.
 
     Reguła:
 
     - ``count == 1`` → l.poj. w przypadku frazy;
-    - mianownik/biernik: nie-męskoosobowe z końcówką 2–4 (nie 12–14) → l.mn.,
-      zgoda (``dwa wydziały``); w pozostałych (m1 dla ≥2 oraz nie-m1 5+/0) →
-      dopełniacz l.mn., rząd (``dwóch studentów`` / ``pięciu studentów`` /
-      ``pięć wydziałów``);
+    - mianownik/biernik: rzeczowniki nie-męskoosobowe z końcówką 2–4 (nie 12–14)
+      → l.mn., zgoda (``dwa wydziały``); w pozostałych (męskoosobowe dla ≥2 oraz
+      5+/0) → dopełniacz l.mn., rząd (``dwóch studentów`` / ``pięć wydziałów``);
     - przypadki zależne (dop./cel./narz./miejsc.) → l.mn. w tym przypadku.
 
     >>> odmiana_liczebnikowa("wydział", 2)
     'wydziały'
     >>> odmiana_liczebnikowa("wydział", 5)
     'wydziałów'
-    >>> odmiana_liczebnikowa("student", 2)   # m1 wykryty automatycznie
+    >>> odmiana_liczebnikowa("student", 2)   # męskoosobowy wykryty automatycznie
     'studentów'
     >>> odmiana_liczebnikowa("wydział", 5, NARZĘDNIK)
     'wydziałami'
@@ -185,14 +173,14 @@ def odmiana_liczebnikowa(wyraz, count, przypadek=MIANOWNIK, *, default=TEN_SAM_W
     ``default`` jak w pozostałych funkcjach (domyślnie passthrough).
     """
     n = abs(int(count))
-    rodzaj = _rodzaj_dominujacy(wyraz)
+    meskoosobowy, rodzaj = _rodzaj_do_liczebnika(wyraz)
     if n == 1:
-        return _forma_rodzaj(wyraz, przypadek, POJEDYNCZA, rodzaj, default)
+        return odmien(wyraz, przypadek, POJEDYNCZA, rodzaj=rodzaj, default=default)
     d, dd = n % 10, n % 100
     grupa_2_4 = 2 <= d <= 4 and not 12 <= dd <= 14
     # zgoda (nom/acc l.mn.) tylko dla nie-męskoosobowych w grupie 2-4;
-    # m1 oraz 5+/0 rządzą dopełniaczem l.mn.
-    zgoda_nom = grupa_2_4 and rodzaj != "m1"
+    # męskoosobowe oraz 5+/0 rządzą dopełniaczem l.mn.
+    zgoda_nom = grupa_2_4 and not meskoosobowy
     if przypadek in (MIANOWNIK, BIERNIK) and not zgoda_nom:
-        return _forma_rodzaj(wyraz, DOPEŁNIACZ, MNOGA, rodzaj, default)  # rząd: dop. l.mn.
-    return _forma_rodzaj(wyraz, przypadek, MNOGA, rodzaj, default)  # zgoda l.mn. / zależny
+        return odmien(wyraz, DOPEŁNIACZ, MNOGA, rodzaj=rodzaj, default=default)
+    return odmien(wyraz, przypadek, MNOGA, rodzaj=rodzaj, default=default)
