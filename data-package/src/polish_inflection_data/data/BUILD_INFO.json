@@ -1,9 +1,12 @@
 {
+  "schema": 1,
   "wersja_sgjp": "pl.sgjp.sgjp-2026.06.29",
-  "data_build": "2026-07-02",
+  "data_build": null,
   "liczba_lematow": 223748,
   "liczba_form": 3666104,
   "liczba_rekordow": 3864426,
+  "liczba_baz_przymiotnikow": 140081,
   "rozmiar_odmien_marisa": 24431696,
-  "rozmiar_podaj_marisa": 25000464
+  "rozmiar_podaj_marisa": 25000464,
+  "rozmiar_przymiotniki_marisa": 500208
 }

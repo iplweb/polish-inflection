@@ -9,6 +9,25 @@ PyPI: <https://pypi.org/project/polish-inflection/>
 
 ## [Nieopublikowane]
 
+## [0.7.0] — 2026-07-03
+
+### Zmieniono (BREAKING)
+- **Dane SGJP wydzielone do osobnego pakietu `polish-inflection-data`** (twarda
+  zależność, wersjonowana wg edycji SGJP `YYYY.M.D`). Wheel `polish-inflection`
+  spada z ~28 MB do ~35 KB — wydania kodu nie re-publikują już ~49 MB słownika, a
+  nowa edycja SGJP wymaga wydania tylko pakietu danych. `pip install
+  polish-inflection` ciągnie komplet jak dawniej. Strażnik schematu (`SCHEMA`)
+  pilnuje zgodności formatu artefaktów.
+- **`zgadnij_przymiotnik` → `podaj_przymiotnik`** (rename) i **rozpoznawanie stało
+  się LEKSYKALNE**: kandydaci na bazę są filtrowani zbiorem prawdziwych baz
+  deklinacyjnych z SGJP (`przymiotniki.marisa`, 0,5 MB — przymiotniki + imiesłowy
+  `pact`/`ppas`, wszystkie stopnie). Koniec nadgeneracji: `podaj_przymiotnik("Michała")`
+  → `[]` (było zmyślone `michały`). Nazwa `zgadnij_przymiotnik` usunięta.
+
+### Dodano
+- **Pakiet `polish-inflection-data`** — indeksy rzeczowników (`odmien`/`podaj`) +
+  zbiór baz przymiotników, z notą licencyjną SGJP w wheelu.
+
 ## [0.6.0] — 2026-07-03
 
 ### Dodano
@@ -151,7 +170,8 @@ PyPI: <https://pypi.org/project/polish-inflection/>
 - Pipeline BUILD (`polish-inflection-build build` / `refresh-sgjp`), CI
   (Python 3.9–3.13), pre-commit, README PL→EN, licencje (kod BSD-2 + dane SGJP).
 
-[Nieopublikowane]: https://github.com/iplweb/polish-inflection/compare/v0.6.0...HEAD
+[Nieopublikowane]: https://github.com/iplweb/polish-inflection/compare/v0.7.0...HEAD
+[0.7.0]: https://github.com/iplweb/polish-inflection/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/iplweb/polish-inflection/compare/v0.5.2...v0.6.0
 [0.5.2]: https://github.com/iplweb/polish-inflection/compare/v0.5.1...v0.5.2
 [0.5.1]: https://github.com/iplweb/polish-inflection/compare/v0.5.0...v0.5.1

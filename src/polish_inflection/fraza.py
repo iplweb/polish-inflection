@@ -25,7 +25,7 @@ from .const import (
     ŻEŃSKI,
 )
 from .core import _rozwiaz_brak, odmien, podaj
-from .przymiotnik import odmien_przymiotnik, zgadnij_przymiotnik
+from .przymiotnik import odmien_przymiotnik, podaj_przymiotnik
 
 __all__ = ["odmien_fraze"]
 
@@ -92,14 +92,14 @@ def _adj_lemat(token: str, rodzaj: str):
 
 def _lemat_przydawki(token: str, rodzaj: str):
     """Lemat, jeśli token to mianownikowa przydawka zgodna z rodzajem głowy; inaczej
-    None. Rozpoznanie przez :func:`zgadnij_przymiotnik` (regułowe, generate-and-test).
+    None. Rozpoznanie przez :func:`podaj_przymiotnik` (regułowe, generate-and-test).
 
     Dopasowanie jest NIEZALEŻNE od docelowej liczby: token wejściowy jest zwykle w
     l.poj. (np. „Lekarski"), a do liczby docelowej odmieniamy dopiero potem —
     dawne porównanie po regeneracji w docelowej liczbie rozjeżdżało się dla l.mn.
     (regen l.mn. „Lekarskie" ≠ token l.poj. „Lekarski")."""
     rp = MĘSKI if rodzaj.startswith(MĘSKI) else rodzaj  # m1/m2/m3 -> publiczny "m"
-    for a in zgadnij_przymiotnik(token):
+    for a in podaj_przymiotnik(token):
         if a.przypadek == MIANOWNIK and a.rodzaj == rp:
             return a.lemat
     return None

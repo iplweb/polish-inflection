@@ -50,10 +50,12 @@ w locie, tylko indeksujemy i wyszukujemy.
 pip install polish-inflection
 ```
 
-Jedyna zależność runtime to `marisa-trie` — kompilowane rozszerzenie C++, które
-dostarcza gotowe binarne wheele (Linux/macOS/Windows, cp39–cp313), więc
-`pip install` nie potrzebuje kompilatora ani narzędzi build. Pakiet wiezie gotowe
-indeksy `.marisa` w wheelu — bez SGJP. Czytnik używa **mmap**: import nie ładuje
+`pip install polish-inflection` ciąga **sam kod** (wheel ~35 KB) plus dwie
+zależności: `marisa-trie` (kompilowane rozszerzenie C++ z gotowymi binarnymi
+wheelami) oraz **`polish-inflection-data`** — osobny pakiet z indeksami SGJP
+(~50 MB), wersjonowany wg edycji słownika. Dzięki temu wydania kodu są malutkie i
+nie re-publikują danych; nowa edycja SGJP → wydanie tylko pakietu danych. `pip
+install` nie potrzebuje kompilatora. Czytnik używa **mmap**: import nie ładuje
 słownika do RAM, a pojedynczy lookup stronicuje tylko O(długość słowa) węzłów
 (~1 µs, mierzony narzut RSS ~1,5 MB zamiast ~23 MB pełnego wczytania).
 
@@ -163,19 +165,20 @@ odmien_przymiotnik("stosowany", MIEJSCOWNIK, NIJAKI)  # "stosowanym"
 `lemat` to mianownik l.poj. rodzaju męskiego (forma słownikowa); `rodzaj` to
 rodzaj słowa określanego (`MĘSKI`/`ŻEŃSKI`/`NIJAKI`, jak zwraca `podaj`).
 
-Kierunek zwrotny dla przymiotnika daje `zgadnij_przymiotnik` (forma → `[Analiza]`):
+Kierunek zwrotny dla przymiotnika daje `podaj_przymiotnik` (forma → `[Analiza]`):
 
 ```python
-from polish_inflection import zgadnij_przymiotnik
+from polish_inflection import podaj_przymiotnik
 
-zgadnij_przymiotnik("wołowa")   # [Analiza('wołowy','nom','sg','f'), Analiza('wołowy','voc','sg','f')]
+podaj_przymiotnik("wołowa")   # [Analiza('wołowy','nom','sg','f'), Analiza('wołowy','voc','sg','f')]
+podaj_przymiotnik("Michała")  # []  — forma rzeczownika, nie przymiotnik
 ```
 
-Nazwa jest szczera: to **zgadywanie regułowe**, nie leksykalny lookup jak `podaj`.
-Rozpoznaje *kształt* przymiotnika (odwraca paradygmat), więc nie potrzebuje indeksu,
-ale może nadgenerować analizy dla form, które tylko wyglądają jak przymiotnik (np.
-rzeczownik `dupa` → zgadnięty `dupy`). Dlatego `podaj` (rzeczowniki, leksykalne) i
-`zgadnij_przymiotnik` są **rozdzielone** — `podaj` nic nie robi z przymiotnikami.
+Rozpoznawanie jest **leksykalne**: kandydaci na bazę są filtrowani zbiorem prawdziwych
+baz deklinacyjnych z SGJP (mały indeks `przymiotniki.marisa`, 0,5 MB), więc formy
+które tylko *wyglądają* jak przymiotnik (np. rzeczownik `Michała` → `michały`) dają
+`[]`. `podaj` (rzeczowniki) i `podaj_przymiotnik` (przymiotniki) są **rozdzielone** —
+`podaj` nic nie robi z przymiotnikami.
 
 ### Odmiana nazw wielowyrazowych (`odmien_fraze`)
 
@@ -233,7 +236,9 @@ Rodzaje: `MĘSKI`, `ŻEŃSKI`, `NIJAKI`. Sentinele `default`: `TEN_SAM_WYRAZ`
 Dane fleksyjne pochodzą ze **Słownika gramatycznego języka polskiego (SGJP)**,
 w wersji przypiętej i zwendorowanej w repozytorium (patrz `data/sgjp/`).
 Zbudowane indeksy pokrywają 223 748 lematów / ~3,86 mln rekordów form i ważą
-łącznie ~49 MB (`odmien.marisa` ≈ 24 MB, `podaj.marisa` ≈ 25 MB).
+łącznie ~49 MB (`odmien.marisa` ≈ 24 MB, `podaj.marisa` ≈ 25 MB, plus
+`przymiotniki.marisa` ≈ 0,5 MB baz przymiotników). Jadą w osobnym pakiecie
+`polish-inflection-data` (wersjonowanym wg edycji SGJP).
 
 > Copyright © 2007–2026 Marcin Woliński, Zbigniew Bronk, Włodzimierz
 > Gruszczyński, Witold Kieraś, Zygmunt Saloni, Danuta Skowrońska, Robert Wołosz.
@@ -298,14 +303,16 @@ nothing at runtime, we only index and look up.
 pip install polish-inflection
 ```
 
-The only runtime dependency is `marisa-trie` — a compiled C++ extension that
-ships prebuilt binary wheels (Linux/macOS/Windows, cp39–cp313), so `pip install`
-needs no compiler and no build tooling. The wheel ships prebuilt `.marisa`
-indices — no SGJP required. The reader uses **mmap**: import does not load the
-dictionary into RAM, and a single lookup pages in only O(word length) nodes
-(~1 µs, measured RSS overhead ~1.5 MB instead of ~23 MB for a full load). The
-indices cover 223,748 lemmas / ~3.86M form records and weigh ~49 MB total
-(`odmien.marisa` ≈ 24 MB, `podaj.marisa` ≈ 25 MB).
+`pip install polish-inflection` pulls **only the code** (~35 KB wheel) plus two
+dependencies: `marisa-trie` (a compiled C++ extension with prebuilt binary wheels)
+and **`polish-inflection-data`** — a separate package holding the SGJP indices
+(~50 MB), versioned by the dictionary edition. So code releases stay tiny and never
+re-publish the data; a new SGJP edition ships only the data package. `pip install`
+needs no compiler. The reader uses **mmap**: import does not load the dictionary
+into RAM, and a single lookup pages in only O(word length) nodes (~1 µs, measured
+RSS overhead ~1.5 MB instead of ~23 MB for a full load). The indices cover 223,748
+lemmas / ~3.86M form records and weigh ~49 MB total (`odmien.marisa` ≈ 24 MB,
+`podaj.marisa` ≈ 25 MB, plus `przymiotniki.marisa` ≈ 0.5 MB of adjective bases).
 
 ### Examples — `odmien`
 

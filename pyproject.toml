@@ -1,6 +1,6 @@
 [project]
 name = "polish-inflection"
-version = "0.6.0"
+version = "0.7.0"
 description = "Lekka odmiana polskich rzeczowników przez przypadki (dane SGJP, indeks marisa-trie, mmap)."
 readme = "README.md"
 requires-python = ">=3.9"
@@ -22,6 +22,10 @@ classifiers = [
 ]
 dependencies = [
     "marisa-trie>=1.0",
+    # Indeksy SGJP w osobnym pakiecie (wersjonowanym wg edycji słownika), żeby
+    # wydania kodu nie re-publikowały ~49 MB danych. Dolny pin = min. edycja SGJP
+    # zgodna z aktualnym schematem artefaktów (_dane._SCHEMA).
+    "polish-inflection-data>=2026.6.28",
 ]
 
 [project.urls]
@@ -52,12 +56,12 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/polish_inflection"]
-# Zbudowane indeksy .marisa (dane pakietowe) oraz marker PEP 561 (py.typed,
-# żeby mypy/pyright u użytkowników widziały adnotacje) jadą w wheelu.
-artifacts = ["*.marisa", "py.typed"]
+# Dane (.marisa) są w osobnym pakiecie polish-inflection-data — TU już nie jadą.
+# Zostaje tylko marker PEP 561 (py.typed), żeby mypy/pyright widziały adnotacje.
+artifacts = ["py.typed"]
 
 [tool.hatch.build.targets.sdist]
-# sdist wiezie kod + zbudowane .marisa, ale NIE surowy vendorowany SGJP .tab.gz (42 MB).
+# sdist wiezie sam kod (dane w osobnym pakiecie).
 include = [
     "src/",
     "tests/",
@@ -67,9 +71,14 @@ include = [
     "NOTICE.md",
     "pyproject.toml",
 ]
-exclude = [
-    "data/sgjp/*.tab.gz",
-]
+
+# Monorepo dev wiring: pakiet danych bierzemy z drzewa (workspace), nie z PyPI —
+# inaczej `uv sync` nie zresolwuje twardego pinu przed pierwszą publikacją danych.
+[tool.uv.workspace]
+members = ["data-package"]
+
+[tool.uv.sources]
+polish-inflection-data = { workspace = true }
 
 [tool.ruff]
 line-length = 100

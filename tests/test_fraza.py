@@ -1,8 +1,9 @@
 """Testy odmiany wielowyrazowych nazw własnych (``odmien_fraze``).
 
 Test integracyjny: potrzebuje szerokiego słownika (realne nazwy uczelni), więc
-zamiast małej fixtury domenowej z ``conftest`` wskazuje na pełny pakietowy
-indeks. Wymaga zbudowanego ``src/polish_inflection/data/*.marisa`` (jest w repo).
+zamiast małej fixtury domenowej z ``conftest`` wskazuje na pełny indeks z pakietu
+``polish-inflection-data`` (editable w dev). Rozpoznanie przymiotników w tych
+frazach korzysta też ze zbioru baz (``przymiotniki.marisa``) z tego pakietu.
 """
 
 import pytest

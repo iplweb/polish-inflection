@@ -17,12 +17,17 @@ import hashlib
 import io
 import json
 import re
+import shutil
 import sys
 from collections.abc import Iterable, Iterator
 from pathlib import Path
 from typing import NamedTuple
 
 from .const import LICZBY_SET, PRZYPADKI_SET
+
+#: Wersja formatu artefaktów .marisa (CONTRACT §D). MUSI zgadzać się z
+#: ``polish_inflection._dane._SCHEMA`` oraz ``polish_inflection_data.SCHEMA``.
+SCHEMA = 1
 
 # ── Model rekordu po ekspansji ─────────────────────────────────────────────
 
@@ -82,6 +87,43 @@ def parsuj_linie(linie: Iterable[str]) -> Iterator[Rekord]:
                 if przypadek not in PRZYPADKI_SET:
                     continue
                 yield Rekord(forma, bare, liczba, przypadek, rodzaj, depr)
+
+
+# ── Bazy deklinacyjne przymiotników (grunt leksykalny dla podaj_przymiotnik) ─
+
+#: Części mowy odmieniające się przymiotnikowo, których mianownik l.poj. m jest
+#: bazą deklinacji reguł: przymiotnik + imiesłowy (czynny/bierny). Bez imiesłowów
+#: filtr odciąłby atrybutywne przydawki (np. „zjednoczony" — w SGJP tylko ppas).
+_POS_BAZY_ADJ = {"adj", "pact", "ppas"}
+_RODZAJE_MESKIE = {"m1", "m2", "m3"}
+
+
+def parsuj_bazy_adj(linie: Iterable[str]) -> set[str]:
+    """Zbiór baz deklinacyjnych = mianownik l.poj. rodzaju męskiego (dowolny stopień)
+    dla adj/pact/ppas. Lowercase. Grunt leksykalny: ``podaj_przymiotnik`` przyjmuje
+    tylko kandydatów należących do tego zbioru (koniec „Michała → michały")."""
+    bazy: set[str] = set()
+    for linia in linie:
+        linia = linia.rstrip("\n")
+        if not linia or linia.startswith("#"):
+            continue
+        pola = linia.split("\t")
+        if len(pola) < 3:
+            continue
+        forma, tag = pola[0], pola[2]
+        if not forma or not tag:
+            continue
+        czesci = tag.split(":")
+        if len(czesci) < 4 or czesci[0] not in _POS_BAZY_ADJ:
+            continue
+        if "sg" not in czesci[1].split("."):
+            continue
+        if "nom" not in czesci[2].split("."):
+            continue
+        if not (set(czesci[3].split(".")) & _RODZAJE_MESKIE):
+            continue
+        bazy.add(forma.lower())
+    return bazy
 
 
 # ── Budowa indeksów (marisa-trie BytesTrie) ────────────────────────────────
@@ -166,6 +208,8 @@ def zbuduj_z_tab(sciezka_tab: Path, out_dir: Path, *, data_build: str | None = N
     Zwraca słownik BUILD_INFO. ``data_build`` przekazuje wywołujący (brak zegara
     w bibliotece); ``None`` -> pole pominięte.
     """
+    import marisa_trie
+
     sciezka_tab = Path(sciezka_tab)
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -178,16 +222,29 @@ def zbuduj_z_tab(sciezka_tab: Path, out_dir: Path, *, data_build: str | None = N
     odmien_trie.save(str(odmien_path))
     podaj_trie.save(str(podaj_path))
 
+    # Zbiór baz przymiotników (osobny przebieg po źródle — inne części mowy niż subst).
+    bazy = parsuj_bazy_adj(_otworz_tab(sciezka_tab))
+    przym_path = out_dir / "przymiotniki.marisa"
+    marisa_trie.Trie(sorted(bazy)).save(str(przym_path))
+
+    # Nota licencyjna SGJP MUSI jechać w wheelu danych (.marisa to utwory zależne).
+    licencja_src = sciezka_tab.parent / "LICENSE.sgjp"
+    if licencja_src.exists():
+        shutil.copyfile(licencja_src, out_dir / "LICENSE.sgjp")
+
     lematy = {r.lemat for r in rekordy}
     formy = {(r.forma, r.lemat, r.liczba, r.przypadek) for r in rekordy}
     info = {
+        "schema": SCHEMA,
         "wersja_sgjp": wersja_sgjp(sciezka_tab),
         "data_build": data_build,
         "liczba_lematow": len(lematy),
         "liczba_form": len(formy),
         "liczba_rekordow": len(rekordy),
+        "liczba_baz_przymiotnikow": len(bazy),
         "rozmiar_odmien_marisa": odmien_path.stat().st_size,
         "rozmiar_podaj_marisa": podaj_path.stat().st_size,
+        "rozmiar_przymiotniki_marisa": przym_path.stat().st_size,
     }
     (out_dir / "BUILD_INFO.json").write_text(
         json.dumps(info, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
@@ -293,24 +350,29 @@ def _domyslny_pin_tab(dane_dir: Path) -> Path:
 
 
 def main(argv: list[str] | None = None) -> int:
+    # Narzędzie REPO-ONLY: wymaga monorepo (surowy SGJP w LFS pod data-package/sgjp/).
+    # Z zainstalowanego wheela nie działa — buduje artefakty do pakietu danych w drzewie.
     repo = Path(__file__).resolve().parents[2]
+    dane_pkg = repo / "data-package"
+    out_domyslny = dane_pkg / "src" / "polish_inflection_data" / "data"
+    sgjp_domyslny = dane_pkg / "sgjp"
     parser = argparse.ArgumentParser(prog="polish-inflection-build")
     sub = parser.add_subparsers(dest="cmd", required=True)
 
     p_build = sub.add_parser("build", help="Zbuduj indeksy z vendorowanego pinu (bez sieci).")
     p_build.add_argument("--tab", type=Path, default=None, help="Ścieżka do .tab/.tab.gz")
-    p_build.add_argument("--out", type=Path, default=repo / "src" / "polish_inflection" / "data")
+    p_build.add_argument("--out", type=Path, default=out_domyslny)
     p_build.add_argument("--data-build", default=None, help="Data buildu (do BUILD_INFO).")
 
     p_refresh = sub.add_parser("refresh-sgjp", help="Pobierz najnowszy SGJP i zaktualizuj pin.")
     p_refresh.add_argument("--wersja", default=None, help="Konkretna wersja YYYYMMDD.")
     p_refresh.add_argument("--data-pobrania", default=None)
-    p_refresh.add_argument("--dane-dir", type=Path, default=repo / "data" / "sgjp")
+    p_refresh.add_argument("--dane-dir", type=Path, default=sgjp_domyslny)
 
     args = parser.parse_args(argv)
 
     if args.cmd == "build":
-        tab = args.tab or _domyslny_pin_tab(repo / "data" / "sgjp")
+        tab = args.tab or _domyslny_pin_tab(sgjp_domyslny)
         info = zbuduj_z_tab(tab, args.out, data_build=args.data_build)
         print(json.dumps(info, ensure_ascii=False, indent=2))
         return 0
