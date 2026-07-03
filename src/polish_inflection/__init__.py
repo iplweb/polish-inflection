@@ -44,7 +44,7 @@ from .pytania import (
     z_kim_z_czym,
 )
 
-__version__ = "0.7.1"
+__version__ = "0.7.2"
 
 __all__ = [
     # funkcje odmiany

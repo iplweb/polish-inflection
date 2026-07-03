@@ -49,6 +49,14 @@ KORPUS = [
     ("Instytut Technologii Stosowanej", DOPEŁNIACZ, "Instytutu Technologii Stosowanej"),
     ("Instytut Fizyki", DOPEŁNIACZ, "Instytutu Fizyki"),
     ("Wydział Matematyki i Informatyki", DOPEŁNIACZ, "Wydziału Matematyki i Informatyki"),
+    # głowy SKOORDYNOWANE spójnikiem "i" — obie są mianownikiem, obie się odmieniają;
+    # dopełniaczowy ogon ("Hematologii Onkologicznej") zamrożony
+    (
+        "Katedra i Zakład Hematologii Onkologicznej",
+        DOPEŁNIACZ,
+        "Katedry i Zakładu Hematologii Onkologicznej",
+    ),
+    ("Klinika i Katedra Chirurgii", DOPEŁNIACZ, "Kliniki i Katedry Chirurgii"),
     # przymiotnik z homografem rzeczownikowym (nom/acc) — MUSI się odmienić, nie zamrozić
     ("język polski", DOPEŁNIACZ, "języka polskiego"),
     # wielkość liter rozstrzyga: mała = przymiotnik (odmienia), wielka = nazwa własna (zamraża)

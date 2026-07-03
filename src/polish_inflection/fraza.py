@@ -30,6 +30,9 @@ __all__ = ["odmien_fraze"]
 # Markery rozpoczynające zamrożony ogon (patronat, wezwanie).
 _MARKERY = {"im.", "imienia", "im", "pw.", "p.w.", "pw"}
 
+# Spójniki koordynujące głowy: „Katedra i Zakład ...", „Klinika oraz Poradnia ...".
+_SPOJNIKI = {"i", "oraz"}
+
 
 def _analizy(token: str, proper: bool = True):
     """Analizy ``podaj`` dla tokenu.
@@ -49,10 +52,17 @@ def _analizy(token: str, proper: bool = True):
 
 
 def _mianownikowa(token: str, proper: bool = True):
-    """Zwróć pierwszą analizę rzeczownika w mianowniku (głowa) albo None."""
-    for a in _analizy(token, proper):
-        if a.przypadek == MIANOWNIK:
-            return a
+    """Zwróć pierwszą analizę rzeczownika w MIANOWNIKU (głowa) albo None.
+
+    Szuka mianownika po WSZYSTKICH wariantach wielkości liter, nie tylko w
+    pierwszym niepustym (jak ``_analizy``): inaczej nazwisko-homograf „Klinik"
+    (acc/gen dla „Klinika") przesłaniałby pospolite „klinika" (nom) i „Klinika"
+    nie byłaby kandydatem na głowę."""
+    proby = (token, token.lower(), token.capitalize()) if proper else (token,)
+    for w in proby:
+        for a in podaj(w):
+            if a.przypadek == MIANOWNIK:
+                return a
     return None
 
 
@@ -191,17 +201,35 @@ def _odmien(tokeny, przypadek: str, liczba: str, proper: bool):
             if f:
                 wynik[i] = _zachowaj_wielkosc(tokeny[i], f)
 
-    # Po głowie: odmieniaj przydawki aż do pierwszego dopełnienia/markera/nieznanego.
-    for i in range(head_idx + 1, len(tokeny)):
+    # Po głowie: odmieniaj przydawki ORAZ głowy skoordynowane spójnikiem („Katedra
+    # i Zakład ...") aż do pierwszego dopełnienia dopełniaczowego / markera / nieznanego.
+    rodzaj_biezacy = rodzaj  # przydawki zgadzają się z NAJBLIŻSZĄ (skoordynowaną) głową
+    i = head_idx + 1
+    while i < len(tokeny):
         tok = tokeny[i]
-        if tok.lower() in _MARKERY or _ma_czytanie_dopelniaczowe(tok, proper):
+        low = tok.lower()
+        if low in _MARKERY or _ma_czytanie_dopelniaczowe(tok, proper):
             break
-        lemat = _lemat_przydawki(tok, rodzaj)
+        if low in _SPOJNIKI:
+            i += 1  # spójnik koordynujący — zostaw, szukaj kolejnej głowy/przydawki
+            continue
+        m = _mianownikowa(tok, proper)
+        if m is not None and not _jest_przymiotnik(tok):
+            # skoordynowana głowa (kolejny rzeczownik w mianowniku) — odmień jak głowę
+            f = odmien(m.lemat, przypadek, liczba, default=None)
+            if f is None:
+                break
+            wynik[i] = _zachowaj_wielkosc(tok, f)
+            rodzaj_biezacy = _rodzaj_zgody(m.lemat, m.rodzaj)
+            i += 1
+            continue
+        lemat = _lemat_przydawki(tok, rodzaj_biezacy)
         if not lemat:
             break
-        f = odmien_przymiotnik(lemat, przypadek, rodzaj, liczba, default=None)
+        f = odmien_przymiotnik(lemat, przypadek, rodzaj_biezacy, liczba, default=None)
         if not f:
             break
         wynik[i] = _zachowaj_wielkosc(tok, f)
+        i += 1
 
     return " ".join(wynik)

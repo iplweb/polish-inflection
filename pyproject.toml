@@ -1,6 +1,6 @@
 [project]
 name = "polish-inflection"
-version = "0.7.1"
+version = "0.7.2"
 description = "Lekka odmiana polskich rzeczowników przez przypadki (dane SGJP, indeks marisa-trie, mmap)."
 readme = "README.md"
 requires-python = ">=3.9"
@@ -61,14 +61,17 @@ packages = ["src/polish_inflection"]
 artifacts = ["py.typed"]
 
 [tool.hatch.build.targets.sdist]
-# sdist wiezie sam kod (dane w osobnym pakiecie).
-include = [
-    "src/",
-    "tests/",
-    "docs/",
+# sdist wiezie SAM KOD (dane są w osobnym pakiecie polish-inflection-data).
+# `only-include` jest twarde: bez tego hatchling dokłada cały tracked tree, w tym
+# `data-package/` z ~49 MB .marisa — sdist pęczniałby do ~28 MB (defeat splitu).
+only-include = [
+    "src",
+    "tests",
+    "docs",
     "README.md",
     "LICENSE",
     "NOTICE.md",
+    "CHANGELOG.md",
     "pyproject.toml",
 ]
 
