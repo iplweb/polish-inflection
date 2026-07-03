@@ -129,6 +129,39 @@ deterministycznie. `default` jak wyżej.
 
 ---
 
+## Zgoda liczebnikowa — `odmiana_liczebnikowa`
+
+```python
+odmiana_liczebnikowa(wyraz, count, przypadek=MIANOWNIK, *, default=TEN_SAM_WYRAZ) -> str | None
+```
+
+Zwraca **sam rzeczownik** w formie narzuconej przez liczbę `count`, w zadanym
+przypadku frazy. Liczebnik słownie NIE jest generowany — numer doklejasz sam:
+`f"{count} {odmiana_liczebnikowa(wyraz, count)}"`.
+
+```python
+odmiana_liczebnikowa("wydział", 1)              # "wydział"
+odmiana_liczebnikowa("wydział", 2)              # "wydziały"
+odmiana_liczebnikowa("wydział", 5)              # "wydziałów"
+odmiana_liczebnikowa("wydział", 5, NARZĘDNIK)   # "wydziałami"
+f"{5} {odmiana_liczebnikowa('wydział', 5)}"     # "5 wydziałów"
+```
+
+Reguła (dla rzeczowników **nie-męskoosobowych**):
+
+| count | mianownik/biernik frazy | przypadki zależne (D/C/N/Ms) |
+|---|---|---|
+| 1 | l.poj. (`wydział`) | l.poj. (`wydziałem`) |
+| końcówka 2–4 (nie 12–14) | l.mn., zgoda (`wydziały`) | l.mn. w tym przypadku (`wydziałami`) |
+| reszta (0, 5–21, 12–14, …) | dopełniacz l.mn., rząd (`wydziałów`) | l.mn. w tym przypadku (`wydziałami`) |
+
+Rodzaj **męskoosobowy (m1)** jest wykrywany automatycznie (z `podaj`) i obsłużony:
+tam mianownik/biernik rządzą dopełniaczem l.mn. już od 2 (`2 → "studentów"` =
+„dwóch studentów", `5 → "studentów"` = „pięciu studentów"). Homograf z analizą m1
+(np. `profesor`) traktowany jest jak m1. `default` jak wyżej.
+
+---
+
 ## Stałe i sentinele
 
 | Nazwa | Wartość / znaczenie |

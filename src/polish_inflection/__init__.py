@@ -32,11 +32,12 @@ from .pytania import (
     kogo_czego,
     komu_czemu,
     o_kim_o_czym,
+    odmiana_liczebnikowa,
     podstawowa_forma,
     z_kim_z_czym,
 )
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 
 __all__ = [
     # funkcje odmiany
@@ -52,6 +53,7 @@ __all__ = [
     "z_kim_z_czym",
     "o_kim_o_czym",
     "podstawowa_forma",
+    "odmiana_liczebnikowa",
     # typy / wyjątki
     "Analiza",
     "BrakOdmiany",

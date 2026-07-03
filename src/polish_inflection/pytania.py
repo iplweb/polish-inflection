@@ -20,6 +20,7 @@ from .const import (
     DOPEŁNIACZ,
     MIANOWNIK,
     MIEJSCOWNIK,
+    MNOGA,
     NARZĘDNIK,
     POJEDYNCZA,
     TEN_SAM_WYRAZ,
@@ -34,6 +35,7 @@ __all__ = [
     "z_kim_z_czym",
     "o_kim_o_czym",
     "podstawowa_forma",
+    "odmiana_liczebnikowa",
     # aliasy
     "komu",
     "czemu",
@@ -119,3 +121,55 @@ def podstawowa_forma(wyraz: str, *, default=TEN_SAM_WYRAZ):
     if not analizy:
         return _rozwiaz_brak(wyraz, default)
     return sorted(a.lemat for a in analizy)[0]
+
+
+def _czy_meskoosobowy(wyraz: str) -> bool:
+    """Czy rzeczownik jest rodzaju męskoosobowego (m1)? Wykrywane z danych SGJP.
+
+    Homograf mający analizę m1 (np. ``profesor`` = m1/f) traktujemy jak m1 —
+    przy liczeniu chodzi zwykle o osoby.
+    """
+    return any(a.rodzaj == "m1" for a in podaj(wyraz))
+
+
+def odmiana_liczebnikowa(wyraz, count, przypadek=MIANOWNIK, *, default=TEN_SAM_WYRAZ):
+    """Forma rzeczownika narzucona przez liczbę ``count`` (zgoda liczebnikowa).
+
+    Zwraca SAM rzeczownik w formie wymaganej przez polską składnię liczebnika,
+    w zadanym przypadku frazy. Liczebnik słownie NIE jest generowany — numer
+    doklejasz sam (``f"{count} {odmiana_liczebnikowa(...)}"``).
+
+    Rodzaj (w tym męskoosobowy m1) jest WYKRYWANY AUTOMATYCZNIE z danych SGJP,
+    więc rząd liczebnika jest dobrany poprawnie dla obu grup.
+
+    Reguła:
+
+    - ``count == 1`` → l.poj. w przypadku frazy;
+    - mianownik/biernik: nie-męskoosobowe z końcówką 2–4 (nie 12–14) → l.mn.,
+      zgoda (``dwa wydziały``); w pozostałych (m1 dla ≥2 oraz nie-m1 5+/0) →
+      dopełniacz l.mn., rząd (``dwóch studentów`` / ``pięciu studentów`` /
+      ``pięć wydziałów``);
+    - przypadki zależne (dop./cel./narz./miejsc.) → l.mn. w tym przypadku.
+
+    >>> odmiana_liczebnikowa("wydział", 2)
+    'wydziały'
+    >>> odmiana_liczebnikowa("wydział", 5)
+    'wydziałów'
+    >>> odmiana_liczebnikowa("student", 2)   # m1 wykryty automatycznie
+    'studentów'
+    >>> odmiana_liczebnikowa("wydział", 5, NARZĘDNIK)
+    'wydziałami'
+
+    ``default`` jak w pozostałych funkcjach (domyślnie passthrough).
+    """
+    n = abs(int(count))
+    if n == 1:
+        return odmien(wyraz, przypadek, POJEDYNCZA, default=default)
+    d, dd = n % 10, n % 100
+    grupa_2_4 = 2 <= d <= 4 and not 12 <= dd <= 14
+    # zgoda (nom/acc l.mn.) tylko dla nie-męskoosobowych w grupie 2-4;
+    # m1 oraz 5+/0 rządzą dopełniaczem l.mn.
+    zgoda_nom = grupa_2_4 and not _czy_meskoosobowy(wyraz)
+    if przypadek in (MIANOWNIK, BIERNIK) and not zgoda_nom:
+        return odmien(wyraz, DOPEŁNIACZ, MNOGA, default=default)  # rząd: dopełniacz l.mn.
+    return odmien(wyraz, przypadek, MNOGA, default=default)  # zgoda l.mn. / przypadek zależny
