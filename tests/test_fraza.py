@@ -12,6 +12,7 @@ from polish_inflection import (
     CELOWNIK,
     DOPEŁNIACZ,
     MIEJSCOWNIK,
+    MNOGA,
     NARZĘDNIK,
     BrakOdmiany,
     core,
@@ -67,6 +68,45 @@ KORPUS = [
 @pytest.mark.parametrize("fraza,przypadek,oczekiwana", KORPUS)
 def test_korpus(fraza, przypadek, oczekiwana):
     assert odmien_fraze(fraza, przypadek) == oczekiwana
+
+
+# ── Frazy pisane małą literą = zwykłe rzeczowniki + przymiotnik (NIE nazwy własne) ──
+# Reguła: cała fraza małą literą ⇒ NIE traktuj słów jak proper-nouny z gazeteera
+# (żaden homograf nazwy miejscowej nie może „ukraść" roli głowy) i NIE kapitalizuj.
+
+FRAZY_MALA_LITERA = [
+    # sedno bug-reportu: głowa-rzeczownik się odmienia, przymiotnik uzgadnia, zero kapitalizacji
+    ("dupa wołowa", DOPEŁNIACZ, "dupy wołowej"),
+    ("dupa wołowa", NARZĘDNIK, "dupą wołową"),
+    ("sala gimnastyczna", DOPEŁNIACZ, "sali gimnastycznej"),
+    ("czerwony samochód", DOPEŁNIACZ, "czerwonego samochodu"),
+    # leniwie małą literą wpisana nazwa uczelni — poprawna odmiana, ale bez kapitalizacji
+    ("uniwersytet warszawski", DOPEŁNIACZ, "uniwersytetu warszawskiego"),
+]
+
+
+@pytest.mark.parametrize("fraza,przypadek,oczekiwana", FRAZY_MALA_LITERA)
+def test_mala_litera_zwykle_rzeczowniki(fraza, przypadek, oczekiwana):
+    assert odmien_fraze(fraza, przypadek) == oczekiwana
+
+
+def test_mala_litera_nie_kapitalizuje():
+    out = odmien_fraze("dupa wołowa", DOPEŁNIACZ)
+    assert out == out.lower(), f"nie powinno kapitalizować: {out!r}"
+
+
+# ── Liczba mnoga wielowyrazowych nazw: przymiotnik MUSI uzgodnić liczbę ──────
+KORPUS_MNOGA = [
+    ("Wydział Lekarski", DOPEŁNIACZ, "Wydziałów Lekarskich"),
+    ("Uniwersytet Lubelski", DOPEŁNIACZ, "Uniwersytetów Lubelskich"),
+    ("Akademia Medyczna", DOPEŁNIACZ, "Akademii Medycznych"),
+    ("Politechnika Warszawska", MIEJSCOWNIK, "Politechnikach Warszawskich"),
+]
+
+
+@pytest.mark.parametrize("fraza,przypadek,oczekiwana", KORPUS_MNOGA)
+def test_korpus_mnoga(fraza, przypadek, oczekiwana):
+    assert odmien_fraze(fraza, przypadek, MNOGA) == oczekiwana
 
 
 def test_marker_im_zamraza_ogon():

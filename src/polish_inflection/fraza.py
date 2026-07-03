@@ -25,7 +25,7 @@ from .const import (
     ŻEŃSKI,
 )
 from .core import _rozwiaz_brak, odmien, podaj
-from .przymiotnik import odmien_przymiotnik
+from .przymiotnik import odmien_przymiotnik, zgadnij_przymiotnik
 
 __all__ = ["odmien_fraze"]
 
@@ -33,24 +33,32 @@ __all__ = ["odmien_fraze"]
 _MARKERY = {"im.", "imienia", "im", "pw.", "p.w.", "pw"}
 
 
-def _analizy(token: str):
-    """Analizy ``podaj`` odporne na wielkość liter (proper nouny są kapitalizowane)."""
-    for w in (token, token.lower(), token.capitalize()):
+def _analizy(token: str, proper: bool = True):
+    """Analizy ``podaj`` dla tokenu.
+
+    ``proper=True`` (tryb nazw własnych) — odporne na wielkość liter: próbuje też
+    warianty skapitalizowane, żeby złapać proper-nouny z gazeteera (SGJP trzyma je
+    wielką literą). ``proper=False`` (fraza pisana w całości małą literą) — TYLKO
+    dokładny token: świadomie NIE schodzimy do gazeteera, żeby homograf nazwy
+    miejscowej (np. wieś „Wołowo" dla „wołowa") nie ukradł roli rzeczownika.
+    """
+    proby = (token, token.lower(), token.capitalize()) if proper else (token,)
+    for w in proby:
         a = podaj(w)
         if a:
             return a
     return []
 
 
-def _mianownikowa(token: str):
+def _mianownikowa(token: str, proper: bool = True):
     """Zwróć pierwszą analizę rzeczownika w mianowniku (głowa) albo None."""
-    for a in _analizy(token):
+    for a in _analizy(token, proper):
         if a.przypadek == MIANOWNIK:
             return a
     return None
 
 
-def _ma_czytanie_dopelniaczowe(token: str) -> bool:
+def _ma_czytanie_dopelniaczowe(token: str, proper: bool = True) -> bool:
     """Czy token ma rzeczownikowe czytanie w DOPEŁNIACZU?
 
     Dopełniacz to kanoniczny sygnał dopełnienia zależnego w nazwach instytucji
@@ -61,7 +69,7 @@ def _ma_czytanie_dopelniaczowe(token: str) -> bool:
     naturalnie: „Instytut Polski" (Polska→dop. „Polski") zamraża, a „instytut
     polski" (przymiotnik) odmienia się.
     """
-    return any(a.przypadek == DOPEŁNIACZ for a in _analizy(token))
+    return any(a.przypadek == DOPEŁNIACZ for a in _analizy(token, proper))
 
 
 def _adj_lemat(token: str, rodzaj: str):
@@ -82,15 +90,18 @@ def _adj_lemat(token: str, rodzaj: str):
     return None
 
 
-def _lemat_przydawki(token: str, rodzaj: str, liczba: str):
-    """Lemat, jeśli token to mianownikowa przydawka zgodna z głową; inaczej None.
-    Weryfikacja przez regenerację: regeneruj mianownik z lematu i porównaj."""
-    lemat = _adj_lemat(token, rodzaj)
-    if lemat is None:
-        return None
-    regen = odmien_przymiotnik(lemat, MIANOWNIK, rodzaj, liczba, default=None)
-    if regen and regen.lower() == token.lower():
-        return lemat
+def _lemat_przydawki(token: str, rodzaj: str):
+    """Lemat, jeśli token to mianownikowa przydawka zgodna z rodzajem głowy; inaczej
+    None. Rozpoznanie przez :func:`zgadnij_przymiotnik` (regułowe, generate-and-test).
+
+    Dopasowanie jest NIEZALEŻNE od docelowej liczby: token wejściowy jest zwykle w
+    l.poj. (np. „Lekarski"), a do liczby docelowej odmieniamy dopiero potem —
+    dawne porównanie po regeneracji w docelowej liczbie rozjeżdżało się dla l.mn.
+    (regen l.mn. „Lekarskie" ≠ token l.poj. „Lekarski")."""
+    rp = MĘSKI if rodzaj.startswith(MĘSKI) else rodzaj  # m1/m2/m3 -> publiczny "m"
+    for a in zgadnij_przymiotnik(token):
+        if a.przypadek == MIANOWNIK and a.rodzaj == rp:
+            return a.lemat
     return None
 
 
@@ -100,10 +111,10 @@ def _zachowaj_wielkosc(wzor: str, forma: str) -> str:
     return forma
 
 
-def _wybierz_glowe(tokeny):
+def _wybierz_glowe(tokeny, proper: bool = True):
     """(indeks, analiza) głowy. Preferuj kandydata NIE wyglądającego na przymiotnik
     (żeby „Polski Uniwersytet" wziął Uniwersytet, nie Polski)."""
-    kandydaci = [(i, a) for i, t in enumerate(tokeny) if (a := _mianownikowa(t))]
+    kandydaci = [(i, a) for i, t in enumerate(tokeny) if (a := _mianownikowa(t, proper))]
     if not kandydaci:
         return None, None
     for i, a in kandydaci:
@@ -141,28 +152,50 @@ def odmien_fraze(fraza: str, przypadek: str, liczba: str = POJEDYNCZA, *, defaul
     'Instytutu Technologii Stosowanej'
     >>> odmien_fraze("Akademia Medyczna", DOPEŁNIACZ)
     'Akademii Medycznej'
+    >>> odmien_fraze("dupa wołowa", DOPEŁNIACZ)   # mała litera = zwykłe rzeczowniki
+    'dupy wołowej'
     """
     tokeny = fraza.split()
     if not tokeny:
         return fraza
 
-    head_idx, head_a = _wybierz_glowe(tokeny)
-    if head_idx is None:
+    # Reguła wielkości liter: fraza w CAŁOŚCI małą literą ⇒ to NIE nazwa własna —
+    # traktuj jak zwykłe rzeczowniki (bez gazeteera, bez kapitalizacji). Dopiero gdy
+    # tak niczego nie rozpoznamy (żadnej głowy), schodzimy do trybu nazw własnych
+    # („chyba że ich nie znajdziesz").
+    proper = fraza != fraza.lower()
+    if not proper:
+        wynik = _odmien(tokeny, przypadek, liczba, proper=False)
+        if wynik is not None:
+            return wynik
+        proper = True
+
+    wynik = _odmien(tokeny, przypadek, liczba, proper=True)
+    if wynik is None:
         return _rozwiaz_brak(fraza, default)
+    return wynik
+
+
+def _odmien(tokeny, przypadek: str, liczba: str, proper: bool):
+    """Właściwa odmiana frazy w danym trybie (``proper``). ``None`` = brak głowy
+    lub brak formy głowy (sygnał do fallbacku / obsługi ``default`` przez wrapper)."""
+    head_idx, head_a = _wybierz_glowe(tokeny, proper)
+    if head_idx is None:
+        return None
 
     rodzaj = _rodzaj_zgody(head_a.lemat, head_a.rodzaj)
     forma_glowy = odmien(head_a.lemat, przypadek, liczba, default=None)
     if forma_glowy is None:
-        return _rozwiaz_brak(fraza, default)
+        return None
 
     wynik = list(tokeny)
     wynik[head_idx] = _zachowaj_wielkosc(tokeny[head_idx], forma_glowy)
 
     # Przydawki przed głową (rzadkie, ale np. „Wyższa Szkoła", „Katolicki Uniwersytet").
     for i in range(head_idx):
-        if _ma_czytanie_dopelniaczowe(tokeny[i]):
+        if _ma_czytanie_dopelniaczowe(tokeny[i], proper):
             continue  # dopełnienie dopełniaczowe — zostaw bez zmian
-        lemat = _lemat_przydawki(tokeny[i], rodzaj, liczba)
+        lemat = _lemat_przydawki(tokeny[i], rodzaj)
         if lemat:
             f = odmien_przymiotnik(lemat, przypadek, rodzaj, liczba, default=None)
             if f:
@@ -171,9 +204,9 @@ def odmien_fraze(fraza: str, przypadek: str, liczba: str = POJEDYNCZA, *, defaul
     # Po głowie: odmieniaj przydawki aż do pierwszego dopełnienia/markera/nieznanego.
     for i in range(head_idx + 1, len(tokeny)):
         tok = tokeny[i]
-        if tok.lower() in _MARKERY or _ma_czytanie_dopelniaczowe(tok):
+        if tok.lower() in _MARKERY or _ma_czytanie_dopelniaczowe(tok, proper):
             break
-        lemat = _lemat_przydawki(tok, rodzaj, liczba)
+        lemat = _lemat_przydawki(tok, rodzaj)
         if not lemat:
             break
         f = odmien_przymiotnik(lemat, przypadek, rodzaj, liczba, default=None)

@@ -24,13 +24,15 @@ from .const import (
     NARZĘDNIK,
     NIJAKI,
     POJEDYNCZA,
+    PRZYPADKI,
     TEN_SAM_WYRAZ,
     WOŁACZ,
     ŻEŃSKI,
 )
 from .core import _rozwiaz_brak
+from .errors import Analiza
 
-__all__ = ["odmien_przymiotnik"]
+__all__ = ["odmien_przymiotnik", "zgadnij_przymiotnik"]
 
 # Podtypy rodzaju męskiego (m1 męskoosobowy, m2 męskozwierzęcy) są w SGJP, ale
 # NIE mają publicznych stałych (biblioteka wystawia tylko MĘSKI/ŻEŃSKI/NIJAKI).
@@ -201,3 +203,82 @@ def odmien_przymiotnik(
     if forma is None:
         return _rozwiaz_brak(lemat, default)
     return forma
+
+
+# ── Rozpoznawanie zwrotne (forma → lemat) ────────────────────────────────────
+# Odwrotność ``odmien_przymiotnik`` BEZ indeksu SGJP: generujemy zbiór lematów-
+# kandydatów z kształtu formy, po czym przez oracle (sam ``odmien_przymiotnik``)
+# sprawdzamy, które sloty paradygmatu faktycznie dają tę formę. Dzięki temu
+# alternacje tematu (welarne, męskoosobowe l.mn.) są obsłużone „za darmo" —
+# nie parsujemy końcówek, tylko potwierdzamy generacją.
+
+# Rodzaje do wygenerowania paradygmatu przy rozpoznawaniu: MĘSKI (nieżywotny sg +
+# niemęskoosobowa l.mn.), m2 (żywotny — biernik l.poj. = dopełniacz), m1
+# (męskoosobowa l.mn.: mianownik/wołacz z alternacją), oraz f/n. Wszystkie mapują
+# na publiczny rodzaj (m/f/n).
+_RODZAJE_ROZPOZNANIA = (
+    (MĘSKI, MĘSKI),
+    (_M2, MĘSKI),
+    (_M1, MĘSKI),
+    (ŻEŃSKI, ŻEŃSKI),
+    (NIJAKI, NIJAKI),
+)
+
+
+def _kandydaci_lematow(forma: str):
+    """Zbiór hipotetycznych lematów (mian. l.poj. m, -y/-i) dla ``forma``.
+
+    Nadgenerowuje świadomie — fałszywe trafienia odsiewa późniejsza weryfikacja
+    generacją. Pokrywa (1) proste ucięcie końcówki + doklejenie -y/-i oraz (2)
+    odwrócenie alternacji tematu mianownika l.mn. męskoosobowego (sk→sc itd.).
+    """
+    kand = set()
+    if forma[-1:] in ("y", "i"):
+        kand.add(forma)  # sama forma bywa lematem (mianownik l.poj. m)
+    for i in range(2, len(forma)):
+        stem = forma[:i]
+        kand.add(stem + "y")
+        kand.add(stem + "i")
+    # odwrócenie alternacji: forma na -scy/-ści/... może pochodzić od -sk/-st/...
+    for konc, nowy, sam in _MESK_ALT:
+        suf = nowy + sam
+        if suf and forma.endswith(suf):
+            baza = forma[: -len(suf)] + konc
+            kand.add(baza + "i")
+            kand.add(baza + "y")
+    return kand
+
+
+def zgadnij_przymiotnik(forma: str) -> list[Analiza]:
+    """ZGADNIJ analizy przymiotnika dla ``forma`` (kierunek zwrotny) → ``[Analiza]``.
+
+    Nazwa mówi wprost: to ZGADYWANIE regułowe, nie leksykalny lookup jak
+    :func:`podaj`. Odwrotność :func:`odmien_przymiotnik`: zwraca wszystkie
+    ``(lemat, przypadek, liczba, rodzaj)``, dla których reguły generują ``forma``
+    (synkretyzm → wiele analiz). ``lemat`` to mianownik l.poj. rodzaju męskiego
+    (forma słownikowa), zawsze małą literą; ``rodzaj`` publiczny (``MĘSKI``/
+    ``ŻEŃSKI``/``NIJAKI``). Niewrażliwe na wielkość liter.
+
+    REGUŁOWE, nie leksykalne: rozpoznaje KSZTAŁT, nie sprawdza czy lemat istnieje
+    w słowniku. Dlatego NADGENERUJE analizy dla form, które tylko wyglądają jak
+    przymiotnik (np. rzeczownik ``dupa`` → zgadnięty ``dupy``). ``podaj`` (rzeczo-
+    wniki) i ``zgadnij_przymiotnik`` są rozdzielone celowo — ``podaj`` NIC nie robi
+    z przymiotnikami; rozstrzyganie rzeczownik-vs-przymiotnik łącz sam z ``podaj``.
+
+    >>> from polish_inflection import Analiza, MIANOWNIK, POJEDYNCZA, ŻEŃSKI
+    >>> Analiza("wołowy", MIANOWNIK, POJEDYNCZA, ŻEŃSKI) in zgadnij_przymiotnik("wołowa")
+    True
+    """
+    f = forma.lower()
+    if not f:
+        return []
+    wynik = set()
+    for lemat in _kandydaci_lematow(f):
+        if _klasa_temat(lemat)[0] is None:
+            continue
+        for rodz_gen, rodz_pub in _RODZAJE_ROZPOZNANIA:
+            for liczba in (POJEDYNCZA, MNOGA):
+                for przypadek in PRZYPADKI:
+                    if odmien_przymiotnik(lemat, przypadek, rodz_gen, liczba, default=None) == f:
+                        wynik.add(Analiza(lemat, przypadek, liczba, rodz_pub))
+    return sorted(wynik, key=lambda a: (a.liczba, a.przypadek, a.lemat, a.rodzaj))

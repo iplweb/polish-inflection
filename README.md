@@ -163,15 +163,31 @@ odmien_przymiotnik("stosowany", MIEJSCOWNIK, NIJAKI)  # "stosowanym"
 `lemat` to mianownik l.poj. rodzaju męskiego (forma słownikowa); `rodzaj` to
 rodzaj słowa określanego (`MĘSKI`/`ŻEŃSKI`/`NIJAKI`, jak zwraca `podaj`).
 
+Kierunek zwrotny dla przymiotnika daje `zgadnij_przymiotnik` (forma → `[Analiza]`):
+
+```python
+from polish_inflection import zgadnij_przymiotnik
+
+zgadnij_przymiotnik("wołowa")   # [Analiza('wołowy','nom','sg','f'), Analiza('wołowy','voc','sg','f')]
+```
+
+Nazwa jest szczera: to **zgadywanie regułowe**, nie leksykalny lookup jak `podaj`.
+Rozpoznaje *kształt* przymiotnika (odwraca paradygmat), więc nie potrzebuje indeksu,
+ale może nadgenerować analizy dla form, które tylko wyglądają jak przymiotnik (np.
+rzeczownik `dupa` → zgadnięty `dupy`). Dlatego `podaj` (rzeczowniki, leksykalne) i
+`zgadnij_przymiotnik` są **rozdzielone** — `podaj` nic nie robi z przymiotnikami.
+
 ### Odmiana nazw wielowyrazowych (`odmien_fraze`)
 
 Odmiana wielowyrazowych **nazw własnych instytucji** — odmienia rzeczownik-głowę
-i uzgadniające się przymiotniki, a dopełniaczowe dopełnienie zamraża:
+i uzgadniające się przymiotniki (także w liczbie mnogiej), a dopełniaczowe
+dopełnienie zamraża:
 
 ```python
-from polish_inflection import odmien_fraze, DOPEŁNIACZ, MIEJSCOWNIK
+from polish_inflection import odmien_fraze, DOPEŁNIACZ, MIEJSCOWNIK, MNOGA
 
 odmien_fraze("Uniwersytet Lubelski", DOPEŁNIACZ)            # "Uniwersytetu Lubelskiego"
+odmien_fraze("Uniwersytet Lubelski", DOPEŁNIACZ, MNOGA)     # "Uniwersytetów Lubelskich"
 odmien_fraze("Akademia Medyczna", MIEJSCOWNIK)              # "Akademii Medycznej"
 odmien_fraze("Instytut Technologii Stosowanej", DOPEŁNIACZ) # "Instytutu Technologii Stosowanej"
 odmien_fraze("Uniwersytet im. Marii Curie", DOPEŁNIACZ)     # "Uniwersytetu im. Marii Curie"
@@ -181,6 +197,15 @@ Parser jest heurystyczny (pod nazwy własne): wykrywa głowę, uzgadnia przymiot
 zamraża ogon od pierwszego dopełnienia zależnego lub markera `im.`. Nieusuwalne
 dwuznaczności (np. „Instytut Polski" = przymiotnik czy dopełniacz „Polski"?)
 domyślnie zamraża; w warstwie aplikacji warto mieć override na wyjątki.
+
+**Wielkość liter rozstrzyga nazwę własną.** Fraza pisana w całości małą literą
+jest traktowana jak **zwykłe rzeczowniki** (nie nazwy własne) — nie sięgamy do
+gazeteera nazw miejscowych i nie kapitalizujemy wyniku:
+
+```python
+odmien_fraze("dupa wołowa", DOPEŁNIACZ)   # "dupy wołowej"  (nie "dupa Wołowa"!)
+odmien_fraze("sala gimnastyczna", DOPEŁNIACZ)  # "sali gimnastycznej"
+```
 
 ### Homografy rodzajowe
 

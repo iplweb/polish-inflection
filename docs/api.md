@@ -184,6 +184,76 @@ publicznie rodzaj to zawsze `MĘSKI`/`ŻEŃSKI`/`NIJAKI`. `default` jak wyżej.
 
 ---
 
+## Przymiotniki — `odmien_przymiotnik` / `zgadnij_przymiotnik`
+
+Przymiotniki są **regułowe, bez indeksu** — ich deklinacja jest regularna, więc
+generujemy ją i rozpoznajemy z reguł (zero przyrostu danych SGJP).
+
+```python
+odmien_przymiotnik(lemat, przypadek, rodzaj, liczba=POJEDYNCZA, *, default=TEN_SAM_WYRAZ) -> str | None
+```
+
+Odmienia przymiotnik. `lemat` to mianownik l.poj. rodzaju męskiego (forma
+słownikowa, np. `lubelski`, `medyczny`); `rodzaj` to rodzaj słowa określanego
+(`MĘSKI`/`ŻEŃSKI`/`NIJAKI`). Zwalidowane przeciw SGJP: l.poj. 99,9%, l.mn. 99,6%.
+
+```python
+odmien_przymiotnik("lubelski", DOPEŁNIACZ, MĘSKI)     # "lubelskiego"
+odmien_przymiotnik("medyczny", DOPEŁNIACZ, ŻEŃSKI)    # "medycznej"
+odmien_przymiotnik("medyczny", DOPEŁNIACZ, ŻEŃSKI, MNOGA)  # "medycznych"
+```
+
+```python
+zgadnij_przymiotnik(forma) -> list[Analiza]
+```
+
+Kierunek zwrotny (forma → `[Analiza]`), odwrotność `odmien_przymiotnik`. Zwraca
+wszystkie `(lemat, przypadek, liczba, rodzaj)`, dla których reguły generują `forma`
+(synkretyzm → wiele analiz). `lemat` zawsze małą literą; niewrażliwe na wielkość
+liter. Nieznana / nieprzymiotnikowa forma → `[]`.
+
+```python
+zgadnij_przymiotnik("wołowa")
+# [Analiza('wołowy','nom','sg','f'), Analiza('wołowy','voc','sg','f')]
+```
+
+**To ZGADYWANIE, nie leksykalny lookup.** Rozpoznaje *kształt*, nie sprawdza czy
+lemat istnieje w słowniku — może więc nadgenerować analizy dla form, które tylko
+wyglądają jak przymiotnik (rzeczownik `dupa` → zgadnięty `dupy`). Dlatego `podaj`
+(rzeczowniki, leksykalne) i `zgadnij_przymiotnik` (przymiotniki, regułowe) są
+**rozdzielone** — `podaj` nic nie robi z przymiotnikami. Rozstrzyganie
+rzeczownik-vs-przymiotnik łączysz sam (np. `podaj` najpierw, `zgadnij_przymiotnik`
+gdy pusto).
+
+---
+
+## Nazwy wielowyrazowe — `odmien_fraze`
+
+```python
+odmien_fraze(fraza, przypadek, liczba=POJEDYNCZA, *, default=TEN_SAM_WYRAZ) -> str | None
+```
+
+Odmienia wielowyrazową **nazwę własną instytucji**: heurystyczny parser wykrywa
+rzeczownik-głowę, uzgadnia z nią przymiotniki (także w l.mn.), a od pierwszego
+dopełnienia zależnego (dopełniacz) lub markera `im.` zamraża ogon.
+
+```python
+odmien_fraze("Uniwersytet Lubelski", DOPEŁNIACZ)          # "Uniwersytetu Lubelskiego"
+odmien_fraze("Uniwersytet Lubelski", DOPEŁNIACZ, MNOGA)   # "Uniwersytetów Lubelskich"
+odmien_fraze("Instytut Fizyki", DOPEŁNIACZ)               # "Instytutu Fizyki"  (ogon zamrożony)
+```
+
+**Reguła wielkości liter.** Fraza w całości małą literą jest traktowana jak
+**zwykłe rzeczowniki**, nie nazwy własne: parser nie sięga do gazeteera nazw
+miejscowych (żaden homograf nazwy wsi nie ukradnie roli głowy) i nie kapitalizuje
+wyniku. Do gazeteera schodzimy tylko, gdy inaczej głowy nie znajdziemy.
+
+```python
+odmien_fraze("dupa wołowa", DOPEŁNIACZ)   # "dupy wołowej"  (nie "dupa Wołowa")
+```
+
+---
+
 ## Stałe i sentinele
 
 | Nazwa | Wartość / znaczenie |

@@ -33,7 +33,7 @@ from .core import (
 )
 from .errors import Analiza, BrakOdmiany
 from .fraza import odmien_fraze
-from .przymiotnik import odmien_przymiotnik
+from .przymiotnik import odmien_przymiotnik, zgadnij_przymiotnik
 from .pytania import (
     kogo_co,
     kogo_czego,
@@ -44,7 +44,7 @@ from .pytania import (
     z_kim_z_czym,
 )
 
-__version__ = "0.5.2"
+__version__ = "0.6.0"
 
 __all__ = [
     # funkcje odmiany
@@ -54,8 +54,9 @@ __all__ = [
     "odmien_lub_wyraz",
     "odmien_warianty",
     "podaj",
-    # odmiana przymiotnika (regułowa, bez indeksu)
+    # przymiotnik: odmiana (regułowa) + zgadywanie zwrotne (regułowe, nadgeneruje)
     "odmien_przymiotnik",
+    "zgadnij_przymiotnik",
     # odmiana wielowyrazowych nazw własnych
     "odmien_fraze",
     # funkcje pytaniowe (kanoniczne; pełne aliasy w polish_inflection.pytania)
