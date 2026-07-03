@@ -396,4 +396,4 @@ Two clearly separated layers:
 
 ## Support graciously provided by
 
-[![IPLweb](https://www.iplweb.pl/images/ipl-logo-large.png)](https://www.iplweb.pl)
+<a href="https://www.iplweb.pl"><img src="https://www.iplweb.pl/images/ipl-logo-large.png" alt="IPLweb" width="200"></a>
