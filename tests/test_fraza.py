@@ -57,6 +57,12 @@ KORPUS = [
         "Katedry i Zakładu Hematologii Onkologicznej",
     ),
     ("Klinika i Katedra Chirurgii", DOPEŁNIACZ, "Kliniki i Katedry Chirurgii"),
+    # koordynacja PRZECINKOWA (+ spójnik): przecinek nie psuje tokenizacji głów
+    (
+        "Katedra, Zakład i Klinika Chirurgii",
+        DOPEŁNIACZ,
+        "Katedry, Zakładu i Kliniki Chirurgii",
+    ),
     # przymiotnik z homografem rzeczownikowym (nom/acc) — MUSI się odmienić, nie zamrozić
     ("język polski", DOPEŁNIACZ, "języka polskiego"),
     # wielkość liter rozstrzyga: mała = przymiotnik (odmienia), wielka = nazwa własna (zamraża)
