@@ -127,6 +127,22 @@ Kanoniczne: `kogo_czego`, `komu_czemu`, `kogo_co`, `z_kim_z_czym`, `o_kim_o_czym
 Domyślnie przy braku formy zwracają wejściowy wyraz (passthrough — pod UI).
 Pełny opis: [`docs/api.md`](docs/api.md).
 
+Zgoda liczebnikowa — poprawna forma rzeczownika przy liczbie (`odmiana_liczebnikowa`):
+
+```python
+from polish_inflection import odmiana_liczebnikowa, NARZĘDNIK
+
+odmiana_liczebnikowa("wydział", 1)             # "wydział"
+odmiana_liczebnikowa("wydział", 2)             # "wydziały"
+odmiana_liczebnikowa("wydział", 5)             # "wydziałów"
+odmiana_liczebnikowa("wydział", 5, NARZĘDNIK)  # "wydziałami"
+f"{5} {odmiana_liczebnikowa('wydział', 5)}"    # "5 wydziałów"
+```
+
+Zwraca **sam rzeczownik** (liczebnik słownie nie jest generowany). W przeciwieństwie
+do `gettext`/`ngettext` nie musisz wpisywać form ręcznie i działa w każdym przypadku,
+nie tylko w mianowniku.
+
 ### Stałe
 
 Przypadki: `MIANOWNIK`, `DOPEŁNIACZ`, `CELOWNIK`, `BIERNIK`, `NARZĘDNIK`,
@@ -276,6 +292,21 @@ Canonical names: `kogo_czego`, `komu_czemu`, `kogo_co`, `z_kim_z_czym`,
 `o_kim_o_czym` (plus aliases in `polish_inflection.pytania`). On a miss they
 return the input word by default (UI-friendly passthrough). Full reference:
 [`docs/api.md`](docs/api.md).
+
+Numeral agreement — the correct noun form for a count (`odmiana_liczebnikowa`):
+
+```python
+from polish_inflection import odmiana_liczebnikowa, NARZĘDNIK
+
+odmiana_liczebnikowa("wydział", 1)             # "wydział"
+odmiana_liczebnikowa("wydział", 2)             # "wydziały"
+odmiana_liczebnikowa("wydział", 5)             # "wydziałów"
+odmiana_liczebnikowa("wydział", 5, NARZĘDNIK)  # "wydziałami"
+```
+
+Returns just the **noun** (the numeral word isn't generated). Unlike
+`gettext`/`ngettext` you don't hand-write the forms, and it works in every case,
+not only the nominative.
 
 ### Data source and attribution
 

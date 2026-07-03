@@ -20,6 +20,7 @@ from .const import (
     DOPEŁNIACZ,
     MIANOWNIK,
     MIEJSCOWNIK,
+    MNOGA,
     NARZĘDNIK,
     POJEDYNCZA,
     TEN_SAM_WYRAZ,
@@ -34,6 +35,7 @@ __all__ = [
     "z_kim_z_czym",
     "o_kim_o_czym",
     "podstawowa_forma",
+    "odmiana_liczebnikowa",
     # aliasy
     "komu",
     "czemu",
@@ -119,3 +121,40 @@ def podstawowa_forma(wyraz: str, *, default=TEN_SAM_WYRAZ):
     if not analizy:
         return _rozwiaz_brak(wyraz, default)
     return sorted(a.lemat for a in analizy)[0]
+
+
+def odmiana_liczebnikowa(wyraz, count, przypadek=MIANOWNIK, *, default=TEN_SAM_WYRAZ):
+    """Forma rzeczownika narzucona przez liczbę ``count`` (zgoda liczebnikowa).
+
+    Zwraca SAM rzeczownik w formie wymaganej przez polską składnię liczebnika,
+    w zadanym przypadku frazy. Liczebnik słownie NIE jest generowany — numer
+    doklejasz sam (``f"{count} {odmiana_liczebnikowa(...)}"``).
+
+    Reguła (rzeczowniki nie-męskoosobowe):
+
+    - ``count == 1`` → l.poj. w przypadku frazy;
+    - końcówka 2–4 (ale nie 12–14) → l.mn.; w mianowniku/bierniku zgoda (nom/acc pl);
+    - reszta (0, 5–21, …) → w mianowniku/bierniku rząd dopełniaczem (gen pl);
+    - przypadki zależne (dop./cel./narz./miejsc.) → l.mn. w tym przypadku.
+
+    >>> odmiana_liczebnikowa("wydział", 1)
+    'wydział'
+    >>> odmiana_liczebnikowa("wydział", 2)
+    'wydziały'
+    >>> odmiana_liczebnikowa("wydział", 5)
+    'wydziałów'
+    >>> odmiana_liczebnikowa("wydział", 5, NARZĘDNIK)
+    'wydziałami'
+
+    Uwaga: rzeczowniki męskoosobowe (m1: ``profesorowie`` / ``pięciu profesorów``)
+    mają odmienny rząd i nie są objęte tą regułą w v1. ``default`` jak w pozostałych
+    funkcjach (domyślnie passthrough).
+    """
+    n = abs(int(count))
+    if n == 1:
+        return odmien(wyraz, przypadek, POJEDYNCZA, default=default)
+    d, dd = n % 10, n % 100
+    grupa_2_4 = 2 <= d <= 4 and not 12 <= dd <= 14
+    if przypadek in (MIANOWNIK, BIERNIK) and not grupa_2_4:
+        return odmien(wyraz, DOPEŁNIACZ, MNOGA, default=default)  # 5 wydziałów (rząd gen)
+    return odmien(wyraz, przypadek, MNOGA, default=default)  # 2 wydziały / oblique
