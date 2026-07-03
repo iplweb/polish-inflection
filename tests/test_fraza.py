@@ -8,6 +8,7 @@ indeks. Wymaga zbudowanego ``src/polish_inflection/data/*.marisa`` (jest w repo)
 import pytest
 
 from polish_inflection import (
+    BIERNIK,
     CELOWNIK,
     DOPEŁNIACZ,
     MIEJSCOWNIK,
@@ -51,6 +52,10 @@ KORPUS = [
     # wielkość liter rozstrzyga: mała = przymiotnik (odmienia), wielka = nazwa własna (zamraża)
     ("instytut polski", DOPEŁNIACZ, "instytutu polskiego"),
     ("Instytut Polski", DOPEŁNIACZ, "Instytutu Polski"),
+    # biernik: żywotność głowy rządzi zgodą przymiotnika (żywotny: biernik=dopełniacz)
+    ("nowy pracownik", BIERNIK, "nowego pracownika"),
+    ("stary nauczyciel", BIERNIK, "starego nauczyciela"),
+    ("Uniwersytet Lubelski", BIERNIK, "Uniwersytet Lubelski"),  # nieżywotny: biernik=mianownik
     # inne przypadki
     ("Uniwersytet Lubelski", MIEJSCOWNIK, "Uniwersytecie Lubelskim"),
     ("Uniwersytet Lubelski", CELOWNIK, "Uniwersytetowi Lubelskiemu"),

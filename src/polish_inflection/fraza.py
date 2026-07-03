@@ -15,6 +15,7 @@ override w django-polish-inflection.
 from __future__ import annotations
 
 from .const import (
+    BIERNIK,
     DOPEŁNIACZ,
     MIANOWNIK,
     MĘSKI,
@@ -111,6 +112,23 @@ def _wybierz_glowe(tokeny):
     return kandydaci[0]
 
 
+def _rodzaj_zgody(lemat: str, rodzaj: str) -> str:
+    """Doprecyzuj żywotność rodzaju męskiego — biernik l.poj. od niej zależy.
+
+    ``podaj`` zwraca rodzaj zgrubny (``MĘSKI``), a przymiotnik w bierniku męskim
+    musi znać żywotność: żywotny → biernik = dopełniacz (``chuja jebanego``),
+    nieżywotny → biernik = mianownik (``wydział lubelski``). Żywotność czytamy z
+    form głowy (biernik = dopełniacz ⇒ żywotny → ``m2``, inaczej ``m3``). f/n bez
+    zmian. (m1 vs m2 — męskoosobowość — nierozstrzygane; istotne tylko dla l.mn.)
+    """
+    if rodzaj != MĘSKI:
+        return rodzaj
+    biernik = odmien(lemat, BIERNIK, POJEDYNCZA, default=None)
+    if biernik is not None and biernik == odmien(lemat, DOPEŁNIACZ, POJEDYNCZA, default=None):
+        return "m2"  # żywotny
+    return "m3"  # nieżywotny
+
+
 def odmien_fraze(fraza: str, przypadek: str, liczba: str = POJEDYNCZA, *, default=TEN_SAM_WYRAZ):
     """Odmień wielowyrazową nazwę własną instytucji do ``przypadek``/``liczba``.
 
@@ -132,7 +150,7 @@ def odmien_fraze(fraza: str, przypadek: str, liczba: str = POJEDYNCZA, *, defaul
     if head_idx is None:
         return _rozwiaz_brak(fraza, default)
 
-    rodzaj = head_a.rodzaj
+    rodzaj = _rodzaj_zgody(head_a.lemat, head_a.rodzaj)
     forma_glowy = odmien(head_a.lemat, przypadek, liczba, default=None)
     if forma_glowy is None:
         return _rozwiaz_brak(fraza, default)
