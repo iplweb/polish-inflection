@@ -10,11 +10,11 @@ słownika do RAM). Schemat kluczy/wartości opisuje CONTRACT §D:
 
 from __future__ import annotations
 
-from importlib.resources import files
 from pathlib import Path
 
 import marisa_trie
 
+from . import _dane
 from .const import POJEDYNCZA, RAISES, TEN_SAM_WYRAZ
 from .errors import Analiza, BrakOdmiany
 
@@ -51,7 +51,7 @@ _katalog_danych: Path | None = None
 
 
 def _domyslny_katalog_danych() -> Path:
-    return Path(str(files("polish_inflection") / "data"))
+    return _dane.katalog()
 
 
 def _ustaw_katalog_danych(sciezka) -> None:

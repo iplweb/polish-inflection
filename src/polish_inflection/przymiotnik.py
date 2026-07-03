@@ -1,9 +1,14 @@
-"""Regułowa odmiana przymiotników (stopień równy) — bez indeksu, czysto z reguł.
+"""Odmiana przymiotników regułą + LEKSYKALNE rozpoznawanie zwrotne.
 
-Odmiana przymiotnika w polszczyźnie jest REGULARNA (zamknięty system paradygmatów
-twardo-/miękko-/welarnotematowych), inaczej niż leksykalna odmiana rzeczownika —
-dlatego nie trzymamy przymiotników w indeksie SGJP (to +46 MB), tylko generujemy
-je regułą (kilka KB kodu). Zwalidowane przeciw SGJP: l.poj. 99,9% zgodności.
+Odmiana (``odmien_przymiotnik``, forward) jest REGUŁOWA i bez indeksu — deklinacja
+przymiotnika w polszczyźnie jest regularna (zamknięty system paradygmatów twardo-/
+miękko-/welarnotematowych), więc generujemy formy regułą (kilka KB kodu zamiast
++46 MB indeksu form). Zwalidowane przeciw SGJP: l.poj. 99,9%.
+
+Rozpoznawanie (``podaj_przymiotnik``, reverse) łączy te reguły z LEKSYKALNYM
+filtrem: kandydaci na bazę są sprawdzani wobec zbioru prawdziwych baz deklinacyjnych
+z SGJP (``przymiotniki.marisa`` w pakiecie danych, 0,5 MB) — dzięki temu forma
+rzeczownika jak „Michała" nie daje zmyślonego „michały".
 
 Wejście ``lemat`` to mianownik l.poj. rodzaju męskiego (forma słownikowa, np.
 ``lubelski``, ``medyczny``, ``stosowany``). ``rodzaj`` to rodzaj GŁOWY, którą
@@ -13,6 +18,7 @@ przymiotnik określa (zgoda) — przyjmujemy publiczne stałe ``MĘSKI``/``ŻEŃ
 
 from __future__ import annotations
 
+from . import _dane
 from .const import (
     BIERNIK,
     CELOWNIK,
@@ -32,7 +38,38 @@ from .const import (
 from .core import _rozwiaz_brak
 from .errors import Analiza
 
-__all__ = ["odmien_przymiotnik", "zgadnij_przymiotnik"]
+__all__ = ["odmien_przymiotnik", "podaj_przymiotnik"]
+
+# ── Zbiór baz deklinacyjnych (grunt leksykalny) ────────────────────────────
+# ``przymiotniki.marisa`` (pakiet danych) to marisa Trie baz = mianowniki l.poj.
+# rodzaju męskiego przymiotników/imiesłowów. ``podaj_przymiotnik`` przyjmuje tylko
+# kandydatów należących do tego zbioru — stąd koniec „Michała → michały".
+# Leniwie mmapowany, cache modułowy; ``_ustaw_zbior_baz`` podmienia go w testach.
+_zbior_baz_trie = None
+_zbior_baz_override = None
+
+
+def _ustaw_zbior_baz(zbior) -> None:
+    """Wstrzyknij zbiór baz (kontener z ``__contains__``) w testach; ``None`` = reset
+    do zbioru z pakietu danych. Analogiczne do ``core._ustaw_katalog_danych``."""
+    global _zbior_baz_override, _zbior_baz_trie
+    _zbior_baz_override = zbior
+    _zbior_baz_trie = None
+
+
+def _zbior_baz():
+    """Zwróć zbiór baz (override z testu albo mmapowany ``przymiotniki.marisa``)."""
+    global _zbior_baz_trie
+    if _zbior_baz_override is not None:
+        return _zbior_baz_override
+    if _zbior_baz_trie is None:
+        import marisa_trie
+
+        trie = marisa_trie.Trie()
+        trie.mmap(str(_dane.katalog() / "przymiotniki.marisa"))
+        _zbior_baz_trie = trie
+    return _zbior_baz_trie
+
 
 # Podtypy rodzaju męskiego (m1 męskoosobowy, m2 męskozwierzęcy) są w SGJP, ale
 # NIE mają publicznych stałych (biblioteka wystawia tylko MĘSKI/ŻEŃSKI/NIJAKI).
@@ -249,31 +286,36 @@ def _kandydaci_lematow(forma: str):
     return kand
 
 
-def zgadnij_przymiotnik(forma: str) -> list[Analiza]:
-    """ZGADNIJ analizy przymiotnika dla ``forma`` (kierunek zwrotny) → ``[Analiza]``.
+def podaj_przymiotnik(forma: str) -> list[Analiza]:
+    """Analizy przymiotnika dla ``forma`` (kierunek zwrotny) → ``[Analiza]``.
 
-    Nazwa mówi wprost: to ZGADYWANIE regułowe, nie leksykalny lookup jak
-    :func:`podaj`. Odwrotność :func:`odmien_przymiotnik`: zwraca wszystkie
-    ``(lemat, przypadek, liczba, rodzaj)``, dla których reguły generują ``forma``
-    (synkretyzm → wiele analiz). ``lemat`` to mianownik l.poj. rodzaju męskiego
-    (forma słownikowa), zawsze małą literą; ``rodzaj`` publiczny (``MĘSKI``/
+    LEKSYKALNE, nie zgadywanie: kandydaci na bazę są filtrowani zbiorem prawdziwych
+    baz deklinacyjnych z SGJP (``przymiotniki.marisa``), więc dla ``"Michała"``
+    (forma rzeczownika) nie zwrócimy już nieistniejącego ``michały``.
+
+    Odwrotność :func:`odmien_przymiotnik`: zwraca wszystkie ``(lemat, przypadek,
+    liczba, rodzaj)``, dla których baza istnieje w słowniku, a reguły generują z niej
+    ``forma`` (synkretyzm → wiele analiz). ``lemat`` to mianownik l.poj. rodzaju
+    męskiego (forma słownikowa), zawsze małą literą; ``rodzaj`` publiczny (``MĘSKI``/
     ``ŻEŃSKI``/``NIJAKI``). Niewrażliwe na wielkość liter.
 
-    REGUŁOWE, nie leksykalne: rozpoznaje KSZTAŁT, nie sprawdza czy lemat istnieje
-    w słowniku. Dlatego NADGENERUJE analizy dla form, które tylko wyglądają jak
-    przymiotnik (np. rzeczownik ``dupa`` → zgadnięty ``dupy``). ``podaj`` (rzeczo-
-    wniki) i ``zgadnij_przymiotnik`` są rozdzielone celowo — ``podaj`` NIC nie robi
-    z przymiotnikami; rozstrzyganie rzeczownik-vs-przymiotnik łącz sam z ``podaj``.
+    ``podaj`` (rzeczowniki) i ``podaj_przymiotnik`` (przymiotniki) są rozdzielone
+    celowo — ``podaj`` NIC nie robi z przymiotnikami.
 
     >>> from polish_inflection import Analiza, MIANOWNIK, POJEDYNCZA, ŻEŃSKI
-    >>> Analiza("wołowy", MIANOWNIK, POJEDYNCZA, ŻEŃSKI) in zgadnij_przymiotnik("wołowa")
+    >>> Analiza("wołowy", MIANOWNIK, POJEDYNCZA, ŻEŃSKI) in podaj_przymiotnik("wołowa")
     True
+    >>> podaj_przymiotnik("Michała")   # forma rzeczownika — nie przymiotnik
+    []
     """
     f = forma.lower()
     if not f:
         return []
+    bazy = _zbior_baz()
     wynik = set()
     for lemat in _kandydaci_lematow(f):
+        if lemat not in bazy:  # filtr leksykalny — tylko prawdziwe bazy z SGJP
+            continue
         if _klasa_temat(lemat)[0] is None:
             continue
         for rodz_gen, rodz_pub in _RODZAJE_ROZPOZNANIA:

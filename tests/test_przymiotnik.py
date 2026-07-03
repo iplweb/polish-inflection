@@ -81,7 +81,9 @@ def _realny_gzip(p: Path) -> bool:
 
 _SGJP = [
     p
-    for p in sorted((Path(__file__).resolve().parents[1] / "data" / "sgjp").glob("*.tab.gz"))
+    for p in sorted(
+        (Path(__file__).resolve().parents[1] / "data-package" / "sgjp").glob("*.tab.gz")
+    )
     if _realny_gzip(p)
 ]
 _PRZ = {"nom", "gen", "dat", "acc", "inst", "loc", "voc"}

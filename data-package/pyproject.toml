@@ -1,0 +1,39 @@
+[project]
+name = "polish-inflection-data"
+version = "2026.6.28"
+description = "Dane SGJP dla polish-inflection: indeksy rzeczowników (odmien/podaj) + zbiór baz przymiotników (marisa-trie). Wersja = edycja SGJP."
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "BSD-2-Clause" }
+authors = [{ name = "Michał Pasternak", email = "m@iplweb.pl" }]
+keywords = ["polish", "sgjp", "inflection", "data", "marisa"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: BSD License",
+    "Natural Language :: Polish",
+    "Programming Language :: Python :: 3",
+    "Topic :: Text Processing :: Linguistic",
+]
+
+[project.urls]
+Homepage = "https://github.com/iplweb/polish-inflection"
+Repository = "https://github.com/iplweb/polish-inflection"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/polish_inflection_data"]
+# Zbudowane indeksy .marisa + BUILD_INFO + nota licencyjna SGJP jadą w wheelu.
+# Wheel MUSI być zwykły (nie zip-safe): mmap wymaga realnego pliku na dysku.
+artifacts = ["*.marisa", "*.json", "LICENSE.sgjp", "NOTICE.md"]
+
+[tool.hatch.build.targets.sdist]
+# sdist wiezie kod pakietu + zbudowane artefakty, ale NIE surowego SGJP .tab.gz.
+include = [
+    "src/",
+    "pyproject.toml",
+    "README.md",
+]

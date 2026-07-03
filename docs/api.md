@@ -184,10 +184,11 @@ publicznie rodzaj to zawsze `MĘSKI`/`ŻEŃSKI`/`NIJAKI`. `default` jak wyżej.
 
 ---
 
-## Przymiotniki — `odmien_przymiotnik` / `zgadnij_przymiotnik`
+## Przymiotniki — `odmien_przymiotnik` / `podaj_przymiotnik`
 
-Przymiotniki są **regułowe, bez indeksu** — ich deklinacja jest regularna, więc
-generujemy ją i rozpoznajemy z reguł (zero przyrostu danych SGJP).
+Odmiana przymiotnika jest **regułowa, bez indeksu** (deklinacja jest regularna).
+Rozpoznawanie zwrotne łączy te reguły z **leksykalnym** filtrem baz z SGJP (mały
+indeks `przymiotniki.marisa`, 0,5 MB) — patrz niżej.
 
 ```python
 odmien_przymiotnik(lemat, przypadek, rodzaj, liczba=POJEDYNCZA, *, default=TEN_SAM_WYRAZ) -> str | None
@@ -204,7 +205,7 @@ odmien_przymiotnik("medyczny", DOPEŁNIACZ, ŻEŃSKI, MNOGA)  # "medycznych"
 ```
 
 ```python
-zgadnij_przymiotnik(forma) -> list[Analiza]
+podaj_przymiotnik(forma) -> list[Analiza]
 ```
 
 Kierunek zwrotny (forma → `[Analiza]`), odwrotność `odmien_przymiotnik`. Zwraca
@@ -213,17 +214,17 @@ wszystkie `(lemat, przypadek, liczba, rodzaj)`, dla których reguły generują `
 liter. Nieznana / nieprzymiotnikowa forma → `[]`.
 
 ```python
-zgadnij_przymiotnik("wołowa")
+podaj_przymiotnik("wołowa")
 # [Analiza('wołowy','nom','sg','f'), Analiza('wołowy','voc','sg','f')]
+podaj_przymiotnik("Michała")   # []  — forma rzeczownika, nie przymiotnik
 ```
 
-**To ZGADYWANIE, nie leksykalny lookup.** Rozpoznaje *kształt*, nie sprawdza czy
-lemat istnieje w słowniku — może więc nadgenerować analizy dla form, które tylko
-wyglądają jak przymiotnik (rzeczownik `dupa` → zgadnięty `dupy`). Dlatego `podaj`
-(rzeczowniki, leksykalne) i `zgadnij_przymiotnik` (przymiotniki, regułowe) są
-**rozdzielone** — `podaj` nic nie robi z przymiotnikami. Rozstrzyganie
-rzeczownik-vs-przymiotnik łączysz sam (np. `podaj` najpierw, `zgadnij_przymiotnik`
-gdy pusto).
+**Leksykalne, nie zgadywanie.** Kandydaci na bazę są filtrowani zbiorem prawdziwych
+baz deklinacyjnych z SGJP (mały indeks `przymiotniki.marisa` w pakiecie danych),
+więc formy które tylko *wyglądają* jak przymiotnik (rzeczownik `Michała` → `michały`)
+dają `[]`. Zbiór baz obejmuje przymiotniki i imiesłowy (`pact`/`ppas`), wszystkie
+stopnie. `podaj` (rzeczowniki) i `podaj_przymiotnik` (przymiotniki) są **rozdzielone**
+— `podaj` nic nie robi z przymiotnikami.
 
 ---
 

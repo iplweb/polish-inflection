@@ -10,7 +10,7 @@ from pathlib import Path
 
 import pytest
 
-from polish_inflection import build, core
+from polish_inflection import build, core, przymiotnik
 
 FIXTURES = Path(__file__).parent / "fixtures"
 DOMAIN_TAB = FIXTURES / "sgjp_domain.tab"
@@ -26,7 +26,13 @@ def zbudowane_dane(tmp_path_factory) -> Path:
 
 @pytest.fixture(autouse=True)
 def _wskaz_dane(zbudowane_dane):
-    """Wskaż runtime na zbudowane dane testowe; posprzątaj po teście."""
+    """Wskaż runtime na zbudowane dane testowe; posprzątaj po teście.
+
+    Zbiór baz przymiotników (``podaj_przymiotnik``) pochodzi z zainstalowanego
+    pakietu ``polish-inflection-data`` (editable w dev) — sprzątamy tylko ewentualny
+    override, żeby test wstrzykujący własny zbiór nie wyciekał na kolejne testy.
+    """
     core._ustaw_katalog_danych(zbudowane_dane)
     yield
     core._ustaw_katalog_danych(None)
+    przymiotnik._ustaw_zbior_baz(None)

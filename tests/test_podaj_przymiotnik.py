@@ -1,11 +1,11 @@
-"""Testy regułowego rozpoznawania przymiotników (kierunek zwrotny: forma → lemat).
+"""Testy leksykalnego rozpoznawania przymiotników (kierunek zwrotny: forma → lemat).
 
-``zgadnij_przymiotnik`` to odwrotność ``odmien_przymiotnik`` — bez indeksu SGJP,
-przez generate-and-test na zamkniętym paradygmacie. Charakteryzacja progowa
-mierzy RECALL przeciw całemu SGJP (czy dla każdej złotej formy odzyskujemy
-poprawną analizę). Recognizer jest REGUŁOWY (nie leksykalny): może nadgenerować
-lematy dla form, które przypadkiem wyglądają jak przymiotnik (np. rzeczownik
-``dupa`` → hipotetyczny ``dupy``) — to udokumentowane ograniczenie, nie błąd.
+``podaj_przymiotnik`` to odwrotność ``odmien_przymiotnik`` (generate-and-test na
+zamkniętym paradygmacie), ale LEKSYKALNA: kandydaci na bazę są filtrowani zbiorem
+prawdziwych baz deklinacyjnych z SGJP (``przymiotniki.marisa``), więc formy które
+tylko wyglądają jak przymiotnik (np. rzeczownik ``dupa``/``Michała``) dają ``[]``.
+Charakteryzacja progowa mierzy RECALL przeciw SGJP (czy dla złotej formy
+odzyskujemy poprawną analizę). Wymaga zainstalowanego ``polish-inflection-data``.
 """
 
 import gzip
@@ -24,12 +24,12 @@ from polish_inflection import (
     POJEDYNCZA,
     ŻEŃSKI,
     Analiza,
-    zgadnij_przymiotnik,
+    podaj_przymiotnik,
 )
 
 
 def _zawiera(forma, lemat, przypadek, liczba, rodzaj):
-    return Analiza(lemat, przypadek, liczba, rodzaj) in zgadnij_przymiotnik(forma)
+    return Analiza(lemat, przypadek, liczba, rodzaj) in podaj_przymiotnik(forma)
 
 
 @pytest.mark.parametrize(
@@ -68,17 +68,37 @@ def test_niewrazliwe_na_wielkosc_liter():
 
 def test_forma_bez_ksztaltu_przymiotnika_pusta():
     # nie kończy się jak żadna forma przymiotnika w paradygmacie
-    assert zgadnij_przymiotnik("xyz") == []
-    assert zgadnij_przymiotnik("") == []
+    assert podaj_przymiotnik("xyz") == []
+    assert podaj_przymiotnik("") == []
 
 
 def test_biernik_zenski_a():
     assert _zawiera("medyczną", "medyczny", BIERNIK, POJEDYNCZA, ŻEŃSKI)
 
 
+# ── Ugruntowanie leksykalne: koniec „Michała → michały" ─────────────────────
+
+
+@pytest.mark.parametrize("forma", ["Michała", "michała", "dupa", "kobieta", "jednostki"])
+def test_forma_rzeczownika_nie_jest_przymiotnikiem(forma):
+    # bazy 'michały'/'dupy'/'kobiety'/'jednostki' NIE istnieją w SGJP jako
+    # przymiotniki → filtr leksykalny odrzuca (regułowy recognizer by je nadgenerował)
+    assert podaj_przymiotnik(forma) == []
+
+
+def test_imieslow_bierny_jest_rozpoznawany():
+    # ppas 'zjednoczony' jest w zbiorze baz (dlatego adj+pact+ppas, nie samo adj)
+    assert _zawiera("zjednoczona", "zjednoczony", MIANOWNIK, POJEDYNCZA, ŻEŃSKI)
+
+
+def test_stopien_wyzszy_jest_baza():
+    # 'wyższy' (stopień wyższy od 'wysoki') to baza deklinacji — kluczowe dla frazy
+    assert _zawiera("wyższa", "wyższy", MIANOWNIK, POJEDYNCZA, ŻEŃSKI)
+
+
 # ── Charakteryzacja progowa (RECALL) przeciw SGJP ───────────────────────────
 # Dla każdej złotej (forma, lemat, przyp, rodz) sprawdzamy, czy
-# zgadnij_przymiotnik(forma) zawiera analizę o publicznym rodzaju. Recognizer jest
+# podaj_przymiotnik(forma) zawiera analizę o publicznym rodzaju. Recognizer jest
 # DROGI per-forma (generate-and-test), więc charakteryzujemy na deterministycznym
 # SAMPLU (co N-ta unikalna forma) — reprezentatywnym, ale wykonalnym w sekundy.
 
@@ -98,7 +118,9 @@ def _realny_gzip(p: Path) -> bool:
 
 _SGJP = [
     p
-    for p in sorted((Path(__file__).resolve().parents[1] / "data" / "sgjp").glob("*.tab.gz"))
+    for p in sorted(
+        (Path(__file__).resolve().parents[1] / "data-package" / "sgjp").glob("*.tab.gz")
+    )
     if _realny_gzip(p)
 ]
 
@@ -140,7 +162,7 @@ def _recall(liczba):
     cache = {}
     for forma, lemat, przyp, rodz_pub in probka:
         if forma not in cache:
-            cache[forma] = {(a.lemat, a.przypadek, a.rodzaj) for a in zgadnij_przymiotnik(forma)}
+            cache[forma] = {(a.lemat, a.przypadek, a.rodzaj) for a in podaj_przymiotnik(forma)}
         if (lemat, przyp, rodz_pub) in cache[forma]:
             ok += 1
     return ok / len(probka), len(klucze)

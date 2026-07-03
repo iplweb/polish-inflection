@@ -17,5 +17,5 @@ repos:
       - id: check-added-large-files
         args: [--maxkb=2048]
         # Wyłączamy INTENCJONALNE duże artefakty: zbudowane indeksy .marisa
-        # (dane pakietowe, ~24 MB) i vendorowany SGJP .tab.gz (git-lfs).
-        exclude: '^(src/polish_inflection/data/.*\.marisa|data/sgjp/.*\.tab\.gz)$'
+        # (pakiet danych, ~49 MB) i vendorowany SGJP .tab.gz (git-lfs).
+        exclude: '^(data-package/src/polish_inflection_data/data/.*\.marisa|data-package/sgjp/.*\.tab\.gz)$'

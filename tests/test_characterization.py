@@ -1,11 +1,9 @@
 """Testy charakteryzacyjne na PEŁNYCH, zbudowanych danych pakietowych.
 
 Weryfikują kryterium sukcesu §13 na realnym słowniku SGJP (nie fixturze).
-Pomijane, gdy indeksy nie zostały jeszcze zbudowane do pakietu
-(``src/polish_inflection/data/*.marisa``) — np. w świeżym checkoutcie/CI.
+Pomijane, gdy pakiet ``polish-inflection-data`` nie jest zainstalowany (jego
+indeksy niedostępne) — np. w świeżym checkoutcie/CI bez pakietu danych.
 """
-
-from pathlib import Path
 
 import pytest
 
@@ -23,8 +21,13 @@ from polish_inflection import (
     podaj,
 )
 
-_DANE = Path(core.__file__).parent / "data"
-_MA_DANE = (_DANE / "odmien.marisa").exists() and (_DANE / "podaj.marisa").exists()
+try:
+    from polish_inflection import _dane
+
+    _DANE = _dane.katalog()
+    _MA_DANE = (_DANE / "odmien.marisa").exists() and (_DANE / "podaj.marisa").exists()
+except Exception:
+    _MA_DANE = False
 
 pytestmark = pytest.mark.skipif(
     not _MA_DANE,
